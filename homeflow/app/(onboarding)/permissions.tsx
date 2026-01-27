@@ -1,0 +1,298 @@
+/**
+ * Permissions Screen
+ *
+ * Request HealthKit and Throne permissions.
+ * HealthKit is required, Throne is optional.
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  useColorScheme,
+  Platform,
+  Alert,
+  Linking,
+} from 'react-native';
+import { useRouter, Href } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors, StanfordColors, Spacing } from '@/constants/theme';
+import { OnboardingStep } from '@/lib/constants';
+import { OnboardingService } from '@/lib/services/onboarding-service';
+import { ThroneService } from '@/lib/services/throne-service';
+import {
+  OnboardingProgressBar,
+  PermissionCard,
+  ContinueButton,
+  PermissionStatus,
+} from '@/components/onboarding';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+
+// Import HealthKit conditionally
+let HealthKitService: any = null;
+if (Platform.OS === 'ios') {
+  try {
+    const healthkit = require('@spezivibe/healthkit');
+    HealthKitService = healthkit.HealthKitService;
+  } catch {
+    // HealthKit not available
+  }
+}
+
+export default function PermissionsScreen() {
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+
+  const [healthKitStatus, setHealthKitStatus] = useState<PermissionStatus>('not_determined');
+  const [throneStatus, setThroneStatus] = useState<PermissionStatus>('not_determined');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // HealthKit is required, Throne is optional
+  const canContinue = healthKitStatus === 'granted' || Platform.OS !== 'ios';
+
+  useEffect(() => {
+    // Check initial status
+    async function checkStatus() {
+      if (HealthKitService?.isAvailable?.()) {
+        // Check if we already have permission
+        // Note: HealthKit doesn't expose a way to check status directly
+        // We'll just start fresh
+      }
+
+      const thronePermission = await ThroneService.getPermissionStatus();
+      setThroneStatus(thronePermission);
+    }
+
+    checkStatus();
+  }, []);
+
+  const handleHealthKitRequest = useCallback(async () => {
+    if (!HealthKitService?.isAvailable?.()) {
+      // Not on iOS or HealthKit not available
+      Alert.alert(
+        'HealthKit Not Available',
+        'HealthKit is only available on iOS devices. For demo purposes, you can continue.',
+        [{ text: 'OK' }]
+      );
+      setHealthKitStatus('granted');
+      return;
+    }
+
+    setHealthKitStatus('loading');
+
+    try {
+      // Import sample types
+      const { SampleType } = require('@spezivibe/healthkit');
+
+      const granted = await HealthKitService.requestAuthorization([
+        SampleType.stepCount,
+        SampleType.heartRate,
+        SampleType.sleepAnalysis,
+        SampleType.activeEnergyBurned,
+        SampleType.distanceWalkingRunning,
+      ]);
+
+      setHealthKitStatus(granted ? 'granted' : 'denied');
+
+      if (!granted) {
+        Alert.alert(
+          'Permission Required',
+          'HealthKit access is required for the study. Please enable it in Settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('HealthKit error:', error);
+      setHealthKitStatus('denied');
+      Alert.alert('Error', 'Failed to request HealthKit permissions. Please try again.');
+    }
+  }, []);
+
+  const handleThroneRequest = useCallback(async () => {
+    setThroneStatus('loading');
+
+    try {
+      const status = await ThroneService.requestPermission();
+      setThroneStatus(status);
+    } catch (error) {
+      console.error('Throne error:', error);
+      setThroneStatus('denied');
+    }
+  }, []);
+
+  const handleThroneSkip = useCallback(async () => {
+    await ThroneService.skipSetup();
+    setThroneStatus('skipped');
+  }, []);
+
+  const handleContinue = async () => {
+    setIsLoading(true);
+
+    try {
+      // Save permission status
+      await OnboardingService.updateData({
+        permissions: {
+          healthKit: healthKitStatus as 'granted' | 'denied' | 'not_determined',
+          throne: throneStatus as 'granted' | 'denied' | 'not_determined' | 'skipped',
+        },
+      });
+
+      await OnboardingService.goToStep(OnboardingStep.BASELINE_SURVEY);
+      router.push('/(onboarding)/baseline-survey' as Href);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.header}>
+        <OnboardingProgressBar currentStep={OnboardingStep.PERMISSIONS} />
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.titleContainer}>
+          <IconSymbol name={'lock.shield.fill' as any} size={32} color={StanfordColors.cardinal} />
+          <Text style={[styles.title, { color: colors.text }]}>
+            App Permissions
+          </Text>
+        </View>
+
+        <Text style={[styles.description, { color: colors.icon }]}>
+          HomeFlow needs access to your health data to track your activity, sleep, and symptoms.
+          Your data is encrypted and only used for research purposes.
+        </Text>
+
+        {/* HealthKit Permission */}
+        <PermissionCard
+          title="Apple Health"
+          description="Access step count, heart rate, sleep data, and activity levels from your iPhone and Apple Watch."
+          icon="heart.fill"
+          status={healthKitStatus}
+          onRequest={handleHealthKitRequest}
+        />
+
+        {/* Throne Permission */}
+        <PermissionCard
+          title="Throne Uroflow"
+          description="Connect your Throne device to track voiding patterns and flow measurements."
+          icon="drop.fill"
+          status={throneStatus}
+          onRequest={handleThroneRequest}
+          onSkip={handleThroneSkip}
+          optional
+          comingSoon
+        />
+
+        {/* Info box */}
+        <View
+          style={[
+            styles.infoBox,
+            { backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#F2F2F7' },
+          ]}
+        >
+          <IconSymbol name="lock.shield.fill" size={20} color={colors.icon} />
+          <Text style={[styles.infoText, { color: colors.icon }]}>
+            You can change these permissions at any time in your device Settings.
+            Your data is never sold or shared with third parties.
+          </Text>
+        </View>
+      </ScrollView>
+
+      <View style={styles.footer}>
+        {!canContinue && (
+          <Text style={[styles.footerHint, { color: colors.icon }]}>
+            Apple Health access is required to continue
+          </Text>
+        )}
+        <ContinueButton
+          title="Continue"
+          onPress={handleContinue}
+          disabled={!canContinue}
+          loading={isLoading}
+        />
+        
+        {/* TEMPORARY: Development-only continue button to test other screens */}
+        {/* TODO: Remove this once ready for production */}
+        {!canContinue && (
+          <View style={{ marginTop: Spacing.sm }}>
+            <Text style={[styles.footerHint, { color: colors.icon, marginBottom: Spacing.xs }]}>
+              ⚠️ Temporary: Skip permissions for testing
+            </Text>
+            <ContinueButton
+              title="Continue (Dev Only)"
+              onPress={handleContinue}
+              loading={isLoading}
+            />
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    paddingTop: Spacing.sm,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: Spacing.screenHorizontal,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  description: {
+    fontSize: 16,
+    lineHeight: 23,
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderRadius: 12,
+    padding: Spacing.md,
+    gap: 12,
+    marginTop: Spacing.sm,
+  },
+  infoText: {
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
+  },
+  footer: {
+    padding: Spacing.md,
+    paddingBottom: Spacing.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  footerHint: {
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+});
