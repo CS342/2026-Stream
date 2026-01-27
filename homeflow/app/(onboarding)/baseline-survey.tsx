@@ -12,7 +12,6 @@ import {
   StyleSheet,
   useColorScheme,
   Animated,
-  ScrollView,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -179,7 +178,7 @@ export default function BaselineSurveyScreen() {
           </View>
 
           <Text style={[styles.disclaimer, { color: colors.icon }]}>
-            This score will be used as your baseline. We'll track how your symptoms
+            This score will be used as your baseline. We&apos;ll track how your symptoms
             change over the course of the study.
           </Text>
         </Animated.View>
@@ -208,22 +207,13 @@ export default function BaselineSurveyScreen() {
         </Text>
       </View>
 
-      <QuestionnaireForm
-        questionnaire={IPSS_QUESTIONNAIRE}
-        onResult={handleSubmit}
-        submitButtonText="Submit Survey"
-      />
-
-      {/* TEMPORARY: Development-only continue button to test other screens */}
-      {/* TODO: Remove this once ready for production */}
-      <View style={[styles.devFooter, { backgroundColor: colors.background }]}>
-        <Text style={[styles.devFooterHint, { color: colors.icon }]}>
-          ⚠️ Temporary: Skip survey for testing
-        </Text>
-        <ContinueButton
-          title="Continue (Dev Only)"
-          onPress={handleContinue}
-          loading={isSubmitting}
+      {/* TEMPORARY: QuestionnaireForm has its own ScrollView - no dev button here */}
+      {/* Use "Reset Onboarding" on home screen to test this flow again */}
+      <View style={styles.formContainer}>
+        <QuestionnaireForm
+          questionnaire={IPSS_QUESTIONNAIRE}
+          onResult={handleSubmit}
+          submitButtonText="Submit Survey"
         />
       </View>
     </SafeAreaView>
@@ -257,6 +247,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.sm,
     lineHeight: 20,
+  },
+  formContainer: {
+    flex: 1,
   },
   resultsContainer: {
     flex: 1,
@@ -343,28 +336,5 @@ const styles = StyleSheet.create({
   footer: {
     padding: Spacing.md,
     paddingBottom: Spacing.lg,
-  },
-  // Temporary dev footer - positioned absolutely to not interfere with QuestionnaireForm layout
-  devFooter: {
-    position: 'absolute',
-    top: 80,
-    right: Spacing.md,
-    padding: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#FF9500',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-    maxWidth: 200,
-  },
-  devFooterHint: {
-    fontSize: 11,
-    textAlign: 'center',
-    marginBottom: Spacing.xs,
-    fontWeight: '600',
   },
 });

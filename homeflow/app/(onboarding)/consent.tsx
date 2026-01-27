@@ -13,7 +13,6 @@ import {
   ScrollView,
   useColorScheme,
   TextInput,
-  Animated,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';

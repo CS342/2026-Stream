@@ -15,7 +15,7 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors, StanfordColors, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import { STUDY_INFO } from '@/lib/constants';
 import { ContinueButton } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -76,11 +76,11 @@ export default function IneligibleScreen() {
         </View>
 
         <Text style={[styles.title, { color: colors.text }]}>
-          We're Sorry
+          We&apos;re Sorry
         </Text>
 
         <Text style={[styles.description, { color: colors.icon }]}>
-          Based on your responses, you don't currently meet the eligibility criteria for the {STUDY_INFO.name}.
+          Based on your responses, you don&apos;t currently meet the eligibility criteria for the {STUDY_INFO.name}.
         </Text>
 
         <View
