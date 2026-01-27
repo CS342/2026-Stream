@@ -1,34 +1,138 @@
 /**
- * Stub onboarding status hook for base template
- * When onboarding feature is added, this file is replaced
+ * Onboarding status hook
+ *
+ * Provides real-time onboarding status for navigation guards
+ * and UI components.
  */
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
+import { OnboardingService } from '@/lib/services/onboarding-service';
+import { OnboardingStep } from '@/lib/constants';
 
 /**
  * Hook that returns onboarding completion status
- * Base implementation always returns true (onboarding complete)
+ * Returns null while loading, true if complete, false if not
  */
 export function useOnboardingStatus(): boolean | null {
   const [status, setStatus] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // In the base template, onboarding is considered complete
-    setStatus(true);
+    let cancelled = false;
+
+    async function checkStatus() {
+      const isComplete = await OnboardingService.isComplete();
+      if (!cancelled) {
+        setStatus(isComplete);
+      }
+    }
+
+    checkStatus();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return status;
 }
 
 /**
- * Mark onboarding as completed (no-op in base template)
+ * Hook that returns the current onboarding step
  */
-export async function markOnboardingCompleted(): Promise<void> {
-  // No-op in base template
+export function useOnboardingStep(): OnboardingStep | null {
+  const [step, setStep] = useState<OnboardingStep | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function getStep() {
+      const currentStep = await OnboardingService.getCurrentStep();
+      if (!cancelled) {
+        setStep(currentStep);
+      }
+    }
+
+    getStep();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return step;
 }
 
 /**
- * Reset onboarding status (no-op in base template)
+ * Hook that provides onboarding navigation controls
+ */
+export function useOnboardingNavigation() {
+  const [currentStep, setCurrentStep] = useState<OnboardingStep | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function init() {
+      const step = await OnboardingService.getCurrentStep();
+      if (!cancelled) {
+        setCurrentStep(step);
+        setIsLoading(false);
+      }
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const nextStep = useCallback(async () => {
+    setIsLoading(true);
+    const next = await OnboardingService.nextStep();
+    setCurrentStep(next);
+    setIsLoading(false);
+    return next;
+  }, []);
+
+  const goToStep = useCallback(async (step: OnboardingStep) => {
+    setIsLoading(true);
+    await OnboardingService.goToStep(step);
+    setCurrentStep(step);
+    setIsLoading(false);
+  }, []);
+
+  const complete = useCallback(async () => {
+    setIsLoading(true);
+    await OnboardingService.complete();
+    setCurrentStep(OnboardingStep.COMPLETE);
+    setIsLoading(false);
+  }, []);
+
+  const getProgress = useCallback(() => {
+    return OnboardingService.getProgress();
+  }, []);
+
+  return {
+    currentStep,
+    isLoading,
+    nextStep,
+    goToStep,
+    complete,
+    getProgress,
+  };
+}
+
+/**
+ * Mark onboarding as completed
+ */
+export async function markOnboardingCompleted(): Promise<void> {
+  await OnboardingService.complete();
+}
+
+/**
+ * Reset onboarding status (for testing)
  */
 export async function resetOnboardingStatus(): Promise<void> {
-  // No-op in base template
+  await OnboardingService.reset();
 }

@@ -7,20 +7,59 @@ import 'react-native-reanimated';
 import '@/assets/styles/global.css';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useOnboardingStatus } from '@/hooks/use-onboarding-status';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { StandardProvider, useStandard } from '@/lib/services/standard-context';
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  // Initial route while loading
+  initialRouteName: 'index',
 };
 
+/**
+ * Navigation stack with onboarding and main app routes
+ */
 function RootLayoutNav() {
+  const onboardingComplete = useOnboardingStatus();
+
+  // While checking onboarding status, show loading
+  if (onboardingComplete === null) {
+    return <LoadingScreen />;
+  }
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="questionnaire" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal', headerShown: true }} />
+      {/* Onboarding flow - shown when not complete */}
+      <Stack.Screen
+        name="(onboarding)"
+        options={{
+          animation: 'fade',
+        }}
+        redirect={onboardingComplete}
+      />
+
+      {/* Main app - shown when onboarding complete */}
+      <Stack.Screen
+        name="(tabs)"
+        redirect={!onboardingComplete}
+      />
+
+      {/* Modal screens */}
+      <Stack.Screen
+        name="questionnaire"
+        options={{ presentation: 'modal' }}
+      />
+      <Stack.Screen
+        name="modal"
+        options={{ presentation: 'modal', title: 'Modal', headerShown: true }}
+      />
+
+      {/* Index route for initial redirect */}
+      <Stack.Screen
+        name="index"
+        options={{ animation: 'none' }}
+      />
     </Stack>
   );
 }
@@ -36,15 +75,10 @@ function AppContent({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Root Layout - Local Mode
+ * Root Layout
  *
- * This is the simplified layout for local storage mode.
- * No authentication is required - the app launches directly.
- *
- * For cloud authentication with Firebase, select the Firebase backend
- * when generating your app:
- *   npx create-spezivibe-app my-app
- *   # Select "Firebase" when prompted for backend
+ * Handles onboarding flow and main app navigation.
+ * Users must complete onboarding before accessing the main app.
  */
 export default function RootLayout() {
   const colorScheme = useColorScheme();
