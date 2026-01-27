@@ -12,8 +12,6 @@ import {
   StyleSheet,
   useColorScheme,
   Animated,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,7 +19,7 @@ import Constants from 'expo-constants';
 import { ChatView, ChatProvider } from '@spezivibe/chat';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { OnboardingStep, STUDY_INFO } from '@/lib/constants';
-import { OnboardingService, OnboardingData } from '@/lib/services/onboarding-service';
+import { OnboardingService } from '@/lib/services/onboarding-service';
 import { OnboardingProgressBar, ContinueButton } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
@@ -219,7 +217,7 @@ export default function OnboardingChatScreen() {
           ]}
         >
           <Text style={[styles.continueHint, { color: colors.icon }]}>
-            Great! You're ready for the next step.
+            Great! You&apos;re ready for the next step.
           </Text>
           <ContinueButton title="Continue to Consent" onPress={handleContinue} />
         </Animated.View>

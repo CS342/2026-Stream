@@ -140,7 +140,7 @@ export default function CompleteScreen() {
           }}
         >
           <Text style={[styles.title, { color: colors.text }]}>
-            You're All Set!
+            You&apos;re All Set!
           </Text>
 
           <Text style={[styles.subtitle, { color: colors.icon }]}>
