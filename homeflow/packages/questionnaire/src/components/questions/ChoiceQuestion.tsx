@@ -74,9 +74,9 @@ export function ChoiceQuestion({ item, formik, theme }: ChoiceQuestionProps) {
                   paddingVertical: theme.spacing.sm,
                   paddingHorizontal: theme.spacing.md,
                   opacity: pressed ? 0.7 : 1,
-                  transform: [{ scale: pressed ? 0.98 : 1 }],
                 },
               ]}
+              delayPressIn={60}
               onPress={() => formik.setFieldValue(linkId, value)}
               accessibilityRole="button"
               accessibilityLabel={display}

@@ -343,7 +343,9 @@ export function QuestionnaireForm({
                   { padding: theme.spacing.lg },
                   scrollContentStyle,
                 ]}
-                keyboardShouldPersistTaps="handled">
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+                bounces={true}>
                 <View style={[styles.header, { marginBottom: theme.spacing.xl }]}>
                   <Text
                     style={[

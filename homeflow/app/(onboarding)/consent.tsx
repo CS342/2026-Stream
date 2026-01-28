@@ -71,6 +71,18 @@ export default function ConsentScreen() {
     }
   };
 
+  // Dev-only handler that bypasses consent validation
+  const handleDevContinue = async () => {
+    setIsSubmitting(true);
+
+    try {
+      await OnboardingService.goToStep(OnboardingStep.PERMISSIONS);
+      router.push('/(onboarding)/permissions' as Href);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
@@ -177,8 +189,6 @@ export default function ConsentScreen() {
           </Text>
         </View>
 
-        {/* Spacer for button */}
-        <View style={{ height: 100 }} />
       </ScrollView>
 
       <View style={[styles.footer, { backgroundColor: colors.background }]}>
@@ -203,7 +213,7 @@ export default function ConsentScreen() {
             </Text>
             <ContinueButton
               title="Continue (Dev Only)"
-              onPress={handleContinue}
+              onPress={handleDevContinue}
               loading={isSubmitting}
             />
           </View>
@@ -245,6 +255,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: Spacing.screenHorizontal,
+    paddingBottom: Spacing.xl,
   },
   introBox: {
     borderRadius: 12,
@@ -295,10 +306,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     padding: Spacing.md,
     paddingBottom: Spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
