@@ -128,6 +128,8 @@ export interface ChatViewProps {
   systemPrompt?: string;
   /** Custom container style */
   containerStyle?: ViewStyle;
+  /** Callback when the assistant completes a response */
+  onResponse?: (content: string) => void;
 }
 
 /**
