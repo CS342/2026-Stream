@@ -124,3 +124,16 @@ Claude Code agents for common tasks. Invoke with `/agent-name`.
 | ux-planner | `/ux-planner` | Design user flows and engagement strategies |
 
 Agent definitions are in `.claude/commands/`.
+
+## Testing Strategy
+
+### Running Tests
+- `npm test`: Runs **ALL** tests (services + workspaces). This is the command used by CI.
+- `npm run test:services`: Runs only the service-layer tests (Jest).
+
+### Feature Flags in Tests
+We use a feature flag pattern to handle tests for features that are not yet implemented (e.g., Throne API integration, Firebase backend).
+
+- **Pattern**: Tests for unimplemented features are wrapped in feature flag checks (e.g., `FEATURE_FLAGS.THRONE_API_IMPLEMENTED`).
+- **Default State**: Flags are set to `false`, causing these tests to rely on stub behavior or be skipped.
+- **Action Required**: When you implement a feature, set the corresponding flag to `true` in the test file and update the test expectations to verify the real implementation.

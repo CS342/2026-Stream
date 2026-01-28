@@ -270,6 +270,7 @@ export default function OnboardingChatScreen() {
         provider={provider}
         systemPrompt={SYSTEM_PROMPT}
         placeholder="Type your response..."
+        onResponse={checkForMarkers}
         emptyState={
           <View style={styles.emptyState}>
             <IconSymbol name="message.fill" size={48} color={colors.icon} />

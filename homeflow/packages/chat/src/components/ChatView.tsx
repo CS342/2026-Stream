@@ -29,6 +29,7 @@ export function ChatView({
   emptyState,
   systemPrompt,
   containerStyle,
+  onResponse,
 }: ChatViewProps) {
   const theme = useMemo(
     () => mergeChatTheme(userTheme, defaultLightChatTheme),
@@ -85,12 +86,16 @@ export function ChatView({
     llmMessages.push({ role: 'user', content: userMessage.content });
 
     abortControllerRef.current = new AbortController();
+    
+    // Track accumulated content for the callback
+    let fullContent = '';
 
     await streamChatCompletion(
       llmMessages,
       provider,
       {
         onToken: (token) => {
+          fullContent += token;
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantMessage.id
@@ -102,6 +107,7 @@ export function ChatView({
         onComplete: () => {
           setIsLoading(false);
           abortControllerRef.current = null;
+          onResponse?.(fullContent);
         },
         onError: (error) => {
           setIsLoading(false);
