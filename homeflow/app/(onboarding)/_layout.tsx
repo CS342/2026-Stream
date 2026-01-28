@@ -65,7 +65,6 @@ export default function OnboardingLayout() {
         name="baseline-survey"
         options={{
           animation: 'slide_from_bottom',
-          presentation: 'formSheet',
         }}
       />
       <Stack.Screen

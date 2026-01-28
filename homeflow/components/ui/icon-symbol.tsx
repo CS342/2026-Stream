@@ -28,9 +28,11 @@ const MAPPING = {
   // Features & Welcome
   'heart.fill': 'favorite',
   'chart.line.uptrend.xyaxis': 'trending-up',
+  'waveform.path.ecg': 'monitor-heart',
   'bell.badge.fill': 'notifications',
   'sparkles': 'auto-awesome',
   'lock.shield.fill': 'security',
+  'lock.shield': 'security',
   'star.fill': 'star',
 
   // Contacts & Communication
