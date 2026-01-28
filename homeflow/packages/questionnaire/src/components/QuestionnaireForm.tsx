@@ -167,6 +167,8 @@ export function QuestionnaireForm({
   initialResponse,
   submitButtonText = 'Submit',
   cancelButtonText = 'Cancel',
+  keyboardVerticalOffset = Platform.OS === 'ios' ? 64 : 0,
+  scrollContentStyle,
 }: QuestionnaireFormProps) {
   const [showCompletion, setShowCompletion] = useState(false);
   const [completedResponse, setCompletedResponse] = useState<QuestionnaireResponse | null>(null);
@@ -321,7 +323,7 @@ export function QuestionnaireForm({
     <KeyboardAvoidingView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}>
+      keyboardVerticalOffset={keyboardVerticalOffset}>
       <Formik
         initialValues={initialValues}
         validationSchema={validationSchema}
@@ -336,7 +338,11 @@ export function QuestionnaireForm({
             <>
               <ScrollView
                 style={styles.scrollView}
-                contentContainerStyle={[styles.scrollContent, { padding: theme.spacing.lg }]}
+                contentContainerStyle={[
+                  styles.scrollContent,
+                  { padding: theme.spacing.lg },
+                  scrollContentStyle,
+                ]}
                 keyboardShouldPersistTaps="handled">
                 <View style={[styles.header, { marginBottom: theme.spacing.xl }]}>
                   <Text

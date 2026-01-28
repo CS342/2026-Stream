@@ -1,3 +1,4 @@
+import type { ViewStyle } from 'react-native';
 import type { Questionnaire, QuestionnaireResponse } from 'fhir/r4';
 export type { Questionnaire, QuestionnaireResponse };
 export type {
@@ -90,6 +91,8 @@ export interface QuestionnaireFormProps {
   initialResponse?: QuestionnaireResponse;
   submitButtonText?: string;
   cancelButtonText?: string;
+  keyboardVerticalOffset?: number;
+  scrollContentStyle?: ViewStyle;
 }
 
 export type QuestionnaireItemType =
