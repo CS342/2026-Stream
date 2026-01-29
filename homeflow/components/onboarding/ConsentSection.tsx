@@ -120,6 +120,16 @@ export function ConsentSection({
           <Text style={[styles.contentText, { color: colors.text }]}>
             {renderContent(content)}
           </Text>
+          <TouchableOpacity
+            style={styles.collapseButton}
+            onPress={toggle}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.collapseButtonText, { color: StanfordColors.cardinal }]}>
+              Collapse
+            </Text>
+            <IconSymbol name={'chevron.up' as any} size={14} color={StanfordColors.cardinal} />
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -214,6 +224,20 @@ const styles = StyleSheet.create({
   contentText: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  collapseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.1)',
+  },
+  collapseButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   bold: {
     fontWeight: '600',

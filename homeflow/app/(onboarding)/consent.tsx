@@ -13,6 +13,8 @@ import {
   ScrollView,
   useColorScheme,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -99,11 +101,17 @@ export default function ConsentScreen() {
         </Text>
       </View>
 
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Introduction */}
         <View
@@ -184,6 +192,11 @@ export default function ConsentScreen() {
             onChangeText={setSignature}
             autoCapitalize="words"
             autoCorrect={false}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 300);
+            }}
           />
           <Text style={[styles.signatureDate, { color: colors.icon }]}>
             Date: {new Date().toLocaleDateString()}
@@ -191,6 +204,7 @@ export default function ConsentScreen() {
         </View>
 
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={[styles.footer, { backgroundColor: colors.background }]}>
         {!allRequiredRead && (
@@ -237,6 +251,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: 4,
+  },
+  keyboardAvoid: {
+    flex: 1,
   },
   scrollView: {
     flex: 1,
