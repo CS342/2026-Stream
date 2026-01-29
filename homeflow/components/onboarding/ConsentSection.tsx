@@ -12,8 +12,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
+  LayoutAnimation,
   useColorScheme,
-  LayoutChangeEvent,
 } from 'react-native';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
@@ -39,41 +39,28 @@ export function ConsentSection({
   const colors = Colors[colorScheme ?? 'light'];
 
   const [expanded, setExpanded] = useState(defaultExpanded);
-  const [contentHeight, setContentHeight] = useState(0);
-  const animatedHeight = useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
-
-  const handleLayout = (event: LayoutChangeEvent) => {
-    const { height } = event.nativeEvent.layout;
-    if (height > 0) {
-      setContentHeight(height);
-    }
-  };
+  const rotationAnim = useRef(new Animated.Value(defaultExpanded ? 1 : 0)).current;
 
   const toggle = () => {
-    const toValue = expanded ? 0 : 1;
-
-    Animated.spring(animatedHeight, {
-      toValue,
-      useNativeDriver: false,
-      tension: 50,
-      friction: 10,
-    }).start();
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 
     if (!expanded && !isRead && onRead) {
       onRead();
     }
 
     setExpanded(!expanded);
+
+    Animated.spring(rotationAnim, {
+      toValue: expanded ? 0 : 1,
+      useNativeDriver: true,
+      tension: 50,
+      friction: 10,
+    }).start();
   };
 
-  const rotateIcon = animatedHeight.interpolate({
+  const rotateIcon = rotationAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
-  });
-
-  const maxHeight = animatedHeight.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, contentHeight || 500],
   });
 
   // Parse markdown-like bold text
@@ -128,13 +115,13 @@ export function ConsentSection({
         </Animated.View>
       </TouchableOpacity>
 
-      <Animated.View style={[styles.contentWrapper, { maxHeight }]}>
-        <View onLayout={handleLayout} style={styles.content}>
+      {expanded && (
+        <View style={styles.content}>
           <Text style={[styles.contentText, { color: colors.text }]}>
             {renderContent(content)}
           </Text>
         </View>
-      </Animated.View>
+      )}
     </View>
   );
 }
@@ -219,9 +206,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     flex: 1,
-  },
-  contentWrapper: {
-    overflow: 'hidden',
   },
   content: {
     padding: Spacing.md,
