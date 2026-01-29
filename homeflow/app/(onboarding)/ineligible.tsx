@@ -14,13 +14,16 @@ import {
   Animated,
   Linking,
 } from 'react-native';
+import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing } from '@/constants/theme';
-import { STUDY_INFO } from '@/lib/constants';
-import { ContinueButton } from '@/components/onboarding';
+import { STUDY_INFO, OnboardingStep } from '@/lib/constants';
+import { OnboardingService } from '@/lib/services/onboarding-service';
+import { ContinueButton, DevToolBar } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 export default function IneligibleScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
@@ -51,6 +54,12 @@ export default function IneligibleScreen() {
   const handleClose = () => {
     // In a real app, this might clear data and exit
     // For now, we'll just stay on this screen
+  };
+
+  // Dev-only: skip past ineligible to continue testing the flow
+  const handleDevContinue = async () => {
+    await OnboardingService.goToStep(OnboardingStep.CONSENT);
+    router.push('/(onboarding)/consent' as Href);
   };
 
   return (
@@ -95,9 +104,8 @@ export default function IneligibleScreen() {
           <Text style={[styles.infoText, { color: colors.icon }]}>
             This study requires:
             {'\n'}{'\n'}• An iPhone with iOS 15 or later
-            {'\n'}• An Apple Watch for health monitoring
-            {'\n'}• A diagnosis of BPH or related symptoms
-            {'\n'}• Plans for or consideration of bladder outlet surgery
+            {'\n'}• BPH or lower urinary tract symptoms suspected to be caused by BPH
+            {'\n'}• Planning to undergo a bladder outlet procedure
           </Text>
         </View>
 
@@ -118,6 +126,8 @@ export default function IneligibleScreen() {
           variant="text"
         />
       </View>
+
+      <DevToolBar currentStep={OnboardingStep.CHAT} onContinue={handleDevContinue} />
     </SafeAreaView>
   );
 }

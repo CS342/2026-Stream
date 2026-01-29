@@ -27,6 +27,7 @@ import {
   PermissionCard,
   ContinueButton,
   PermissionStatus,
+  DevToolBar,
 } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
@@ -150,6 +151,12 @@ export default function PermissionsScreen() {
     }
   };
 
+  // Dev-only handler that bypasses permission requirements
+  const handleDevContinue = async () => {
+    await OnboardingService.goToStep(OnboardingStep.BASELINE_SURVEY);
+    router.push('/(onboarding)/baseline-survey' as Href);
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
@@ -220,22 +227,9 @@ export default function PermissionsScreen() {
           disabled={!canContinue}
           loading={isLoading}
         />
-        
-        {/* TEMPORARY: Development-only continue button to test other screens */}
-        {/* TODO: Remove this once ready for production */}
-        {!canContinue && (
-          <View style={{ marginTop: Spacing.sm }}>
-            <Text style={[styles.footerHint, { color: colors.icon, marginBottom: Spacing.xs }]}>
-              ⚠️ Temporary: Skip permissions for testing
-            </Text>
-            <ContinueButton
-              title="Continue (Dev Only)"
-              onPress={handleContinue}
-              loading={isLoading}
-            />
-          </View>
-        )}
       </View>
+
+      <DevToolBar currentStep={OnboardingStep.PERMISSIONS} onContinue={handleDevContinue} />
     </SafeAreaView>
   );
 }

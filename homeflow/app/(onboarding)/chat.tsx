@@ -12,6 +12,8 @@ import {
   StyleSheet,
   useColorScheme,
   Animated,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +22,7 @@ import { ChatView, ChatProvider } from '@spezivibe/chat';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { OnboardingStep, STUDY_INFO } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
-import { OnboardingProgressBar, ContinueButton } from '@/components/onboarding';
+import { OnboardingProgressBar, ContinueButton, DevToolBar } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 /**
@@ -66,10 +68,10 @@ const SYSTEM_PROMPT = `You are a friendly research assistant helping to screen a
 ## Phase 1: Eligibility (Required Criteria)
 Check these naturally (don't read a checklist):
 1. Has iPhone with iOS 15+ (required)
-2. Has Apple Watch (required)
-3. Has BPH diagnosis OR experiencing urinary symptoms like frequent urination, weak stream, nighttime urination (required)
-4. Considering or scheduled for bladder outlet surgery like TURP, HoLEP, GreenLight laser, UroLift, Rezum, Aquablation (required)
-5. Willing to use Throne uroflow device at home (optional - explain it's a portable urine flow meter)
+2. Has BPH or lower urinary tract symptoms suspected to be caused by BPH - such as frequent urination, weak stream, nighttime urination (required)
+3. Planning to undergo a bladder outlet procedure such as TURP, HoLEP, GreenLight laser, UroLift, Rezum, Aquablation (required)
+
+Note: Apple Watch and Throne uroflow devices will be provided to participants - do NOT ask about these.
 
 ## Phase 2: Medical History (if eligible)
 
@@ -131,14 +133,14 @@ When ineligible: [INELIGIBLE]
 When ALL medical history sections are complete: [HISTORY_COMPLETE]
 
 ## Conversation Flow Example
-1. Start with eligibility (devices, diagnosis, surgery plans)
+1. Start with eligibility (iPhone, BPH diagnosis/symptoms, surgery plans)
 2. Transition after eligible: "Great news! You're eligible for the study. [ELIGIBLE] Now I need to collect some medical history. We'll automatically get things like your age and weight from Apple Health, but I need to ask you about medications, conditions, and a few other things..."
 3. Work through sections in order: Demographics → Medications → Surgeries → Labs → Conditions → Clinical data → Planned surgery
 4. Before finishing, summarize: "Let me confirm what I have..." then list key points
 5. End with: "I have everything I need. [HISTORY_COMPLETE] You can tap Continue to proceed."
 
 ## Start the Conversation
-"Hi! I'm here to help you join the HomeFlow study. This is a research study that tracks urinary symptoms before and after prostate surgery. Let me ask a few quick questions to make sure this study is right for you.
+"Hi! I'm here to help you join the HomeFlow study. This is a research study that tracks urinary symptoms before and after bladder outlet surgery. Let me ask a few quick questions to make sure this study is right for you.
 
 First - are you using an iPhone with iOS 15 or later?"`;
 
@@ -203,10 +205,8 @@ export default function OnboardingChatScreen() {
     await OnboardingService.updateData({
       eligibility: {
         hasIPhone: true,
-        hasAppleWatch: true,
         hasBPHDiagnosis: true,
         consideringSurgery: true,
-        willingToUseThrone: true,
         isEligible: true,
       },
     });
@@ -247,75 +247,63 @@ export default function OnboardingChatScreen() {
           </Text>
           <ContinueButton title="Continue (Demo)" onPress={handleContinue} style={{ marginTop: Spacing.lg }} />
         </View>
+
+        <DevToolBar currentStep={OnboardingStep.CHAT} onContinue={handleContinue} />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-      <View style={styles.header}>
-        <OnboardingProgressBar currentStep={OnboardingStep.CHAT} />
-        <View style={styles.phaseIndicator}>
-          <View
-            style={[
-              styles.phaseDot,
-              { backgroundColor: phase === 'complete' ? '#34C759' : StanfordColors.cardinal },
-            ]}
-          />
-          <Text style={[styles.phaseText, { color: colors.icon }]}>{getPhaseText()}</Text>
-        </View>
-      </View>
-
-      <ChatView
-        provider={provider}
-        systemPrompt={SYSTEM_PROMPT}
-        placeholder="Type your response..."
-        onResponse={checkForMarkers}
-        emptyState={
-          <View style={styles.emptyState}>
-            <IconSymbol name="message.fill" size={48} color={colors.icon} />
-            <Text style={[styles.emptyStateText, { color: colors.icon }]}>
-              Starting conversation...
-            </Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <View style={styles.header}>
+          <OnboardingProgressBar currentStep={OnboardingStep.CHAT} />
+          <View style={styles.phaseIndicator}>
+            <View
+              style={[
+                styles.phaseDot,
+                { backgroundColor: phase === 'complete' ? '#34C759' : StanfordColors.cardinal },
+              ]}
+            />
+            <Text style={[styles.phaseText, { color: colors.icon }]}>{getPhaseText()}</Text>
           </View>
-        }
-      />
-
-      {canContinue && (
-        <Animated.View
-          style={[
-            styles.continueContainer,
-            {
-              backgroundColor: colors.background,
-              opacity: buttonOpacity,
-            },
-          ]}
-        >
-          <Text style={[styles.continueHint, { color: colors.icon }]}>
-            Great! You&apos;re ready for the next step.
-          </Text>
-          <ContinueButton title="Continue to Consent" onPress={handleContinue} />
-        </Animated.View>
-      )}
-
-      {/* TEMPORARY: Development-only continue button to test other screens */}
-      {/* TODO: Remove this once eligibility questions are properly set up */}
-      {!canContinue && (
-        <View
-          style={[
-            styles.continueContainer,
-            {
-              backgroundColor: colors.background,
-            },
-          ]}
-        >
-          <Text style={[styles.continueHint, { color: colors.icon }]}>
-            ⚠️ Temporary: Skip eligibility for testing
-          </Text>
-          <ContinueButton title="Continue (Dev Only)" onPress={handleContinue} />
         </View>
-      )}
-    </SafeAreaView>
+
+        <ChatView
+          provider={provider}
+          systemPrompt={SYSTEM_PROMPT}
+          placeholder="Type your response..."
+          onResponse={checkForMarkers}
+          emptyState={
+            <View style={styles.emptyState}>
+              <IconSymbol name="message.fill" size={48} color={colors.icon} />
+              <Text style={[styles.emptyStateText, { color: colors.icon }]}>
+                Starting conversation...
+              </Text>
+            </View>
+          }
+        />
+
+        {canContinue && (
+          <Animated.View
+            style={[
+              styles.continueContainer,
+              {
+                backgroundColor: colors.background,
+                opacity: buttonOpacity,
+              },
+            ]}
+          >
+            <Text style={[styles.continueHint, { color: colors.icon }]}>
+              Great! You&apos;re ready for the next step.
+            </Text>
+            <ContinueButton title="Continue to Consent" onPress={handleContinue} />
+          </Animated.View>
+        )}
+
+        <DevToolBar currentStep={OnboardingStep.CHAT} onContinue={handleContinue} />
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 

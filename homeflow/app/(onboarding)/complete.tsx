@@ -16,9 +16,9 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
-import { STUDY_INFO } from '@/lib/constants';
+import { STUDY_INFO, OnboardingStep } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
-import { ContinueButton } from '@/components/onboarding';
+import { ContinueButton, DevToolBar } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 export default function CompleteScreen() {
@@ -189,6 +189,8 @@ export default function CompleteScreen() {
           <ContinueButton title="Get Started" onPress={handleContinue} />
         </Animated.View>
       )}
+
+      <DevToolBar currentStep={OnboardingStep.COMPLETE} onContinue={handleContinue} />
     </SafeAreaView>
   );
 }
