@@ -60,6 +60,9 @@ export default function OnboardingRouter() {
     case OnboardingStep.PERMISSIONS:
       return <Redirect href={'/(onboarding)/permissions' as Href} />;
 
+    case OnboardingStep.MEDICAL_HISTORY:
+      return <Redirect href={'/(onboarding)/medical-history' as Href} />;
+
     case OnboardingStep.BASELINE_SURVEY:
       return <Redirect href={'/(onboarding)/baseline-survey' as Href} />;
 

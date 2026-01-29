@@ -144,8 +144,8 @@ export default function PermissionsScreen() {
         },
       });
 
-      await OnboardingService.goToStep(OnboardingStep.BASELINE_SURVEY);
-      router.push('/(onboarding)/baseline-survey' as Href);
+      await OnboardingService.goToStep(OnboardingStep.MEDICAL_HISTORY);
+      router.push('/(onboarding)/medical-history' as Href);
     } finally {
       setIsLoading(false);
     }
@@ -153,8 +153,8 @@ export default function PermissionsScreen() {
 
   // Dev-only handler that bypasses permission requirements
   const handleDevContinue = async () => {
-    await OnboardingService.goToStep(OnboardingStep.BASELINE_SURVEY);
-    router.push('/(onboarding)/baseline-survey' as Href);
+    await OnboardingService.goToStep(OnboardingStep.MEDICAL_HISTORY);
+    router.push('/(onboarding)/medical-history' as Href);
   };
 
   return (

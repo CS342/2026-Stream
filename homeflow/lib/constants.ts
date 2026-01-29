@@ -40,9 +40,10 @@ export const CONSENT_KEY = '@consent_given';
  */
 export enum OnboardingStep {
   WELCOME = 'welcome',
-  CHAT = 'chat', // Combined eligibility + medical history
+  CHAT = 'chat', // Eligibility screening
   CONSENT = 'consent',
   PERMISSIONS = 'permissions',
+  MEDICAL_HISTORY = 'medical_history', // Medical history collection (chatbot)
   BASELINE_SURVEY = 'baseline_survey',
   COMPLETE = 'complete',
 }
@@ -55,6 +56,7 @@ export const ONBOARDING_FLOW: OnboardingStep[] = [
   OnboardingStep.CHAT,
   OnboardingStep.CONSENT,
   OnboardingStep.PERMISSIONS,
+  OnboardingStep.MEDICAL_HISTORY,
   OnboardingStep.BASELINE_SURVEY,
   OnboardingStep.COMPLETE,
 ];

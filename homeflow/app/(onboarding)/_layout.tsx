@@ -62,6 +62,12 @@ export default function OnboardingLayout() {
         }}
       />
       <Stack.Screen
+        name="medical-history"
+        options={{
+          animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen
         name="baseline-survey"
         options={{
           animation: 'slide_from_bottom',
