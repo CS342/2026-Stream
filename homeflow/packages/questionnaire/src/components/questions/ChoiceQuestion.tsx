@@ -76,7 +76,6 @@ export function ChoiceQuestion({ item, formik, theme }: ChoiceQuestionProps) {
                   opacity: pressed ? 0.7 : 1,
                 },
               ]}
-              delayPressIn={60}
               onPress={() => formik.setFieldValue(linkId, value)}
               accessibilityRole="button"
               accessibilityLabel={display}
