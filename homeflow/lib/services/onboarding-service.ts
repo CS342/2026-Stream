@@ -15,10 +15,8 @@ export interface OnboardingData {
   // Eligibility responses (from chatbot)
   eligibility?: {
     hasIPhone: boolean;
-    hasAppleWatch: boolean;
     hasBPHDiagnosis: boolean;
     consideringSurgery: boolean;
-    willingToUseThrone: boolean;
     isEligible: boolean;
   };
 

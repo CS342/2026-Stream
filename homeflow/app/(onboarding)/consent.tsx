@@ -30,6 +30,7 @@ import {
   ConsentSection,
   ConsentAgreement,
   ContinueButton,
+  DevToolBar,
 } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
@@ -203,22 +204,9 @@ export default function ConsentScreen() {
           disabled={!canContinue}
           loading={isSubmitting}
         />
-        
-        {/* TEMPORARY: Development-only continue button to test other screens */}
-        {/* TODO: Remove this once ready for production */}
-        {!canContinue && (
-          <View style={{ marginTop: Spacing.sm }}>
-            <Text style={[styles.footerHint, { color: colors.icon, marginBottom: Spacing.xs }]}>
-              ⚠️ Temporary: Skip consent for testing
-            </Text>
-            <ContinueButton
-              title="Continue (Dev Only)"
-              onPress={handleDevContinue}
-              loading={isSubmitting}
-            />
-          </View>
-        )}
       </View>
+
+      <DevToolBar currentStep={OnboardingStep.CONSENT} onContinue={handleDevContinue} />
     </SafeAreaView>
   );
 }

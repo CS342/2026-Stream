@@ -16,11 +16,8 @@ import { QuestionnaireBuilder } from '@spezivibe/questionnaire';
  */
 export interface EligibilityCriteria {
   hasIPhone: boolean;
-  hasAppleWatch: boolean;
   hasBPHDiagnosis: boolean;
   consideringSurgery: boolean;
-  willingToUseThrone: boolean;
-  age?: number;
 }
 
 /**
@@ -36,21 +33,12 @@ export function checkEligibility(criteria: EligibilityCriteria): {
     reasons.push('An iPhone with iOS 15 or later is required for the study.');
   }
 
-  if (!criteria.hasAppleWatch) {
-    reasons.push('An Apple Watch is required for continuous health monitoring.');
-  }
-
   if (!criteria.hasBPHDiagnosis) {
-    reasons.push('This study is for individuals diagnosed with BPH or experiencing BPH symptoms.');
+    reasons.push('This study is for individuals diagnosed with BPH or experiencing lower urinary tract symptoms suspected to be caused by BPH.');
   }
 
   if (!criteria.consideringSurgery) {
-    reasons.push('This study focuses on patients scheduled for or considering bladder outlet surgery.');
-  }
-
-  // Throne is optional but encouraged
-  if (!criteria.willingToUseThrone) {
-    // This is a soft requirement - we can proceed without it
+    reasons.push('This study focuses on patients planning to undergo a bladder outlet procedure.');
   }
 
   return {
@@ -70,22 +58,11 @@ export const ELIGIBILITY_QUESTIONNAIRE: Questionnaire = new QuestionnaireBuilder
   .addBoolean('has_iphone', 'Do you have an iPhone with iOS 15 or later?', {
     required: true,
   })
-  .addBoolean('has_apple_watch', 'Do you have an Apple Watch?', {
+  .addBoolean('has_bph_diagnosis', 'Do you have BPH or have lower urinary tract symptoms suspected to be caused by BPH?', {
     required: true,
   })
-  .addBoolean('has_bph_diagnosis', 'Have you been diagnosed with BPH (benign prostatic hyperplasia) or are you experiencing urinary symptoms?', {
+  .addBoolean('considering_surgery', 'Are you planning to undergo a bladder outlet procedure?', {
     required: true,
-  })
-  .addBoolean('considering_surgery', 'Are you scheduled for or considering bladder outlet surgery (such as TURP, laser therapy, or other BPH procedures)?', {
-    required: true,
-  })
-  .addBoolean('willing_throne', 'Are you willing to use a Throne uroflowmetry device to track your voiding patterns? (This is optional but recommended)', {
-    required: true,
-  })
-  .addInteger('age', 'What is your age?', {
-    required: false,
-    min: 18,
-    max: 120,
   })
   .build();
 
@@ -98,18 +75,17 @@ export const ELIGIBILITY_CHATBOT_PROMPT = `You are a friendly research assistant
 ## Study Information
 - Name: HomeFlow BPH Study
 - Purpose: Track voiding patterns and symptoms before/after bladder outlet surgery
-- Requires: iPhone with iOS 15+, Apple Watch
-- Focus: Men with BPH who are considering or scheduled for surgery
+- Requires: iPhone with iOS 15+
+- Focus: Men with BPH who are planning to undergo a bladder outlet procedure
+- Note: Apple Watch and Throne uroflow devices will be provided to participants
 
 ## Your Task
 Ask about eligibility criteria naturally. Don't read a checklist - have a conversation.
 
 ## Eligibility Criteria (must collect all):
 1. Has iPhone with iOS 15+ (required)
-2. Has Apple Watch (required)
-3. Has BPH diagnosis OR experiencing urinary symptoms (required)
-4. Considering or scheduled for bladder outlet surgery (required)
-5. Willing to use Throne device (optional but encouraged)
+2. Has BPH or lower urinary tract symptoms suspected to be caused by BPH (required)
+3. Planning to undergo a bladder outlet procedure (required)
 
 ## Guidelines
 - Be warm and conversational, not clinical

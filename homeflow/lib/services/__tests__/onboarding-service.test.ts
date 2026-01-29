@@ -310,10 +310,8 @@ describe('OnboardingService', () => {
       await service.updateData({
         eligibility: {
           hasIPhone: true,
-          hasAppleWatch: true,
           hasBPHDiagnosis: true,
           consideringSurgery: true,
-          willingToUseThrone: true,
           isEligible: true,
         },
       });
