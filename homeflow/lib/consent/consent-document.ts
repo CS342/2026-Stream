@@ -51,154 +51,90 @@ export const CONSENT_DOCUMENT: ConsentDocument = {
       id: 'overview',
       title: 'Study Overview',
       required: true,
-      content: `You are being asked to participate in a research study. This document provides important information about the study, including its purpose, what participation involves, and the risks and benefits.
+      content: `You are invited to participate in a research study on benign prostatic hyperplasia (BPH) and lower urinary tract symptoms. This study is being conducted at ${STUDY_INFO.institution} to evaluate whether relief of bladder outlet obstruction can improve objective quality of life and activity measures using wearable devices and home uroflow measurement.
 
-**Study Title:** ${STUDY_INFO.name}
+**Protocol Title:** ${STUDY_INFO.name}
 
-**Principal Investigator:** ${STUDY_INFO.principalInvestigator}
+**Protocol Director (PI):** ${STUDY_INFO.principalInvestigator}
 
-**Institution:** ${STUDY_INFO.institution}
-
-**IRB Protocol:** ${STUDY_INFO.irbProtocol}
-
-Please read this information carefully and take as much time as you need. You may ask questions at any time by contacting the research team.`,
+**IRB Number:** ${STUDY_INFO.irbProtocol}`,
     },
     {
       id: 'purpose',
       title: 'Purpose of the Study',
       required: true,
-      content: `The purpose of this research study is to understand how voiding patterns, physical activity, and sleep change before and after bladder outlet surgery for benign prostatic hyperplasia (BPH).
-
-By collecting data passively using your iPhone, Apple Watch, and optional Throne uroflowmetry device, we hope to:
-
-- Better understand recovery patterns after BPH surgery
-- Identify factors that predict surgical outcomes
-- Develop tools to help patients and doctors monitor recovery
-
-This study will enroll approximately 100 participants over 2 years.`,
+      content: `The purpose of this research is to determine whether improvement in bladder outlet obstruction is associated with measurable improvements in daily activity, sleep, and urinary flow patterns. The results may help improve diagnosis and guide treatment of lower urinary tract symptoms.`,
     },
     {
       id: 'procedures',
       title: 'Study Procedures',
       required: true,
-      content: `If you agree to participate, you will be asked to:
+      content: `If you choose to participate, you will be asked to take part in the following:
 
-**During Enrollment (Today)**
-- Complete eligibility screening
-- Provide informed consent (this document)
-- Share access to Apple Health data
-- Optionally connect your Throne device
-- Complete a baseline symptom questionnaire (IPSS)
+\u2022 Registration and setup, including study screening, consent, initial surveys, and mobile application setup (approximately 30 minutes).
 
-**During the Study (6 months)**
-- Allow the app to passively collect health data:
-  - Step count and activity levels
-  - Sleep duration and patterns
-  - Heart rate (if available)
-  - Voiding data from Throne (if connected)
-- Complete brief symptom surveys periodically (about 5 minutes each)
-- Continue using your devices normally
+\u2022 Use of a wearable device (such as a smartwatch) that you already own. You will be asked to wear the device daily and allow data collected by the device to be shared with the study team through a Stanford-designed research application.
 
-**What We Collect**
-- Health data from Apple Watch and iPhone
-- Uroflow measurements from Throne (optional)
-- Survey responses about your symptoms
-- Basic demographic information`,
+\u2022 Installation and use of a smart toilet\u2013based uroflow measurement device (Throne One) attached to your home toilet. You will be asked to record as many voids as possible during a one-week period.
+
+\u2022 Completion of survey questionnaires collecting demographic information, medical history, and urinary symptoms, including follow-up surveys at 1 and 12 weeks after surgery.
+
+\u2022 Sharing of medical information from your medical record and from other health systems through Apple Health and related integrations, with your permission.`,
     },
     {
       id: 'risks',
       title: 'Risks and Discomforts',
       required: true,
-      content: `**Minimal Physical Risk**
-This study involves no physical interventions. You will continue your normal medical care.
-
-**Privacy Risk**
-There is a risk that your personal health information could be accessed by unauthorized individuals. We take extensive measures to protect your data (see Privacy section).
-
-**Time and Inconvenience**
-Completing surveys takes a small amount of time. The app runs in the background and should not interfere with normal phone use.
-
-**Emotional Discomfort**
-Some participants may feel uncomfortable answering questions about urinary symptoms. You may skip any question you prefer not to answer.`,
+      content: `The risks associated with this study include the time required to download, set up, and use the mobile applications and devices. There is a very small risk of inadvertent disclosure of private health information related to your voiding or wearable data. Although safeguards are in place, there is a small risk of data security breaches.`,
     },
     {
       id: 'benefits',
       title: 'Benefits',
       required: true,
-      content: `**Potential Benefits to You**
-- Track your symptoms and recovery over time
-- Receive personalized insights about your health patterns
-- Contribute to research that may help future patients
-
-**Benefits to Society**
-- Improve understanding of BPH surgery outcomes
-- Help develop better monitoring tools for patients
-- Advance scientific knowledge in urology`,
+      content: `You may not receive any direct benefit from participating in this study. The potential benefit is contributing to research that may improve understanding of voiding dysfunction and help develop better diagnostic and treatment tools for future patients.`,
     },
     {
       id: 'privacy',
       title: 'Privacy and Data Protection',
       required: true,
-      content: `**How We Protect Your Data**
-- All data is encrypted in transit and at rest
-- Data is stored on secure, HIPAA-compliant servers
-- Your identity is separated from your health data
-- Only authorized researchers can access study data
+      content: `Your data will be handled securely and used only for research purposes. Identifiable information may be removed, and de-identified data may be used for future research studies or shared with other investigators without additional consent. All reasonable efforts will be made to protect your privacy.
 
-**What We Share**
-- De-identified data may be shared with other researchers
-- We will never sell your data
-- We will never share identifiable data without your permission
+Although safeguards are in place, there is a small risk of data security breaches.`,
+    },
+    {
+      id: 'hipaa',
+      title: 'HIPAA Authorization',
+      required: true,
+      content: `By participating in this study, you authorize the sharing of medical information from your medical record and from other health systems through Apple Health and related integrations, with your permission.
 
-**Your Rights**
-- You can request a copy of your data at any time
-- You can request deletion of your data
-- You can withdraw from the study at any time
+Your data will be handled securely and used only for research purposes. Identifiable information may be removed, and de-identified data may be used for future research studies or shared with other investigators without additional consent. All reasonable efforts will be made to protect your privacy.
 
-**Data Retention**
-- Study data will be retained for 7 years after study completion
-- After this period, data will be securely destroyed`,
+Although safeguards are in place, there is a small risk of data security breaches.
+
+You may choose not to participate or to withdraw from the study at any time without penalty or loss of benefits to which you are otherwise entitled. Your decision will not affect your medical care.`,
     },
     {
       id: 'compensation',
       title: 'Compensation',
       required: false,
-      content: `There is no direct compensation for participating in this study. However, you will receive:
-
-- Free access to the HomeFlow app during the study
-- Personalized health insights based on your data
-- Summary of your symptom trends over time
-
-If you are injured as a result of being in this study, ${STUDY_INFO.institution} does not have a program to compensate you.`,
+      content: `You will receive $100 for successful completion of the study.`,
     },
     {
       id: 'voluntary',
       title: 'Voluntary Participation',
       required: true,
-      content: `Your participation in this study is completely voluntary.
-
-- You may choose not to participate
-- You may withdraw at any time without penalty
-- Withdrawing will not affect your medical care
-- You may skip any questions you don't want to answer
-
-To withdraw from the study, contact the research team or use the "Withdraw from Study" option in the app settings.`,
+      content: `Your participation in this study is voluntary. You may choose not to participate or to withdraw from the study at any time without penalty or loss of benefits to which you are otherwise entitled. Your decision will not affect your medical care.`,
     },
     {
       id: 'contact',
       title: 'Contact Information',
       required: true,
-      content: `**Questions About the Study**
-Contact the research team:
-- Email: ${STUDY_INFO.contactEmail}
-- Phone: ${STUDY_INFO.contactPhone}
+      content: `If you have questions, concerns, or complaints about this research study, you may contact the Protocol Director:
 
-**Questions About Your Rights as a Participant**
-Contact the ${STUDY_INFO.institution} Institutional Review Board (IRB):
-- Protocol Number: ${STUDY_INFO.irbProtocol}
+${STUDY_INFO.principalInvestigator}
+Phone: ${STUDY_INFO.contactPhone}
 
-**Medical Concerns**
-For any medical concerns, contact your healthcare provider directly.`,
+You may also contact the ${STUDY_INFO.institution} Institutional Review Board (IRB) for independent information about your rights as a research participant.`,
     },
   ],
 };

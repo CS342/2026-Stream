@@ -75,8 +75,8 @@ export const CONSENT_VERSION = '1.0.0';
 export const STUDY_INFO = {
   name: 'HomeFlow BPH Study',
   institution: 'Stanford University',
-  principalInvestigator: 'Dr. [PI Name]',
-  irbProtocol: '[IRB Protocol Number]',
+  principalInvestigator: 'Ryan Sun, MD',
+  irbProtocol: 'IRB# -----',
   contactEmail: 'homeflow-study@stanford.edu',
-  contactPhone: '(650) 123-4567',
+  contactPhone: '713-677-1764',
 } as const;

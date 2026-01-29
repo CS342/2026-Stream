@@ -24,7 +24,7 @@ import {
   calculateIPSSScore,
   getIPSSSeverityDescription,
 } from '@/lib/questionnaires/ipss-questionnaire';
-import { OnboardingProgressBar, ContinueButton } from '@/components/onboarding';
+import { OnboardingProgressBar, ContinueButton, DevToolBar } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 export default function BaselineSurveyScreen() {
@@ -98,6 +98,12 @@ export default function BaselineSurveyScreen() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Dev-only handler that bypasses the survey
+  const handleDevContinue = async () => {
+    await OnboardingService.goToStep(OnboardingStep.COMPLETE);
+    router.replace('/(onboarding)/complete' as Href);
   };
 
   const getSeverityColor = () => {
@@ -190,6 +196,8 @@ export default function BaselineSurveyScreen() {
             loading={isSubmitting}
           />
         </View>
+
+        <DevToolBar currentStep={OnboardingStep.BASELINE_SURVEY} onContinue={handleDevContinue} />
       </SafeAreaView>
     );
   }
@@ -207,18 +215,18 @@ export default function BaselineSurveyScreen() {
         </Text>
       </View>
 
-      {/* TEMPORARY: QuestionnaireForm has its own ScrollView - no dev button here */}
-      {/* Use "Reset Onboarding" on home screen to test this flow again */}
       <View style={styles.formContainer}>
         <QuestionnaireForm
           questionnaire={IPSS_QUESTIONNAIRE}
           onResult={handleSubmit}
           submitButtonText="Submit Survey"
           // Fix for scroll issue: Ensure keyboard doesn't cover input and content scrolls past footer
-          keyboardVerticalOffset={100} 
+          keyboardVerticalOffset={100}
           scrollContentStyle={{ paddingBottom: 120 }}
         />
       </View>
+
+      <DevToolBar currentStep={OnboardingStep.BASELINE_SURVEY} onContinue={handleDevContinue} />
     </SafeAreaView>
   );
 }

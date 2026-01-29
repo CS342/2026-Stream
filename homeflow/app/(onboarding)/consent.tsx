@@ -13,6 +13,8 @@ import {
   ScrollView,
   useColorScheme,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,6 +32,7 @@ import {
   ConsentSection,
   ConsentAgreement,
   ContinueButton,
+  DevToolBar,
 } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
@@ -71,6 +74,18 @@ export default function ConsentScreen() {
     }
   };
 
+  // Dev-only handler that bypasses consent validation
+  const handleDevContinue = async () => {
+    setIsSubmitting(true);
+
+    try {
+      await OnboardingService.goToStep(OnboardingStep.PERMISSIONS);
+      router.push('/(onboarding)/permissions' as Href);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
@@ -86,11 +101,17 @@ export default function ConsentScreen() {
         </Text>
       </View>
 
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Introduction */}
         <View
@@ -171,15 +192,19 @@ export default function ConsentScreen() {
             onChangeText={setSignature}
             autoCapitalize="words"
             autoCorrect={false}
+            onFocus={() => {
+              setTimeout(() => {
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }, 300);
+            }}
           />
           <Text style={[styles.signatureDate, { color: colors.icon }]}>
             Date: {new Date().toLocaleDateString()}
           </Text>
         </View>
 
-        {/* Spacer for button */}
-        <View style={{ height: 100 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={[styles.footer, { backgroundColor: colors.background }]}>
         {!allRequiredRead && (
@@ -193,22 +218,9 @@ export default function ConsentScreen() {
           disabled={!canContinue}
           loading={isSubmitting}
         />
-        
-        {/* TEMPORARY: Development-only continue button to test other screens */}
-        {/* TODO: Remove this once ready for production */}
-        {!canContinue && (
-          <View style={{ marginTop: Spacing.sm }}>
-            <Text style={[styles.footerHint, { color: colors.icon, marginBottom: Spacing.xs }]}>
-              ⚠️ Temporary: Skip consent for testing
-            </Text>
-            <ContinueButton
-              title="Continue (Dev Only)"
-              onPress={handleContinue}
-              loading={isSubmitting}
-            />
-          </View>
-        )}
       </View>
+
+      <DevToolBar currentStep={OnboardingStep.CONSENT} onContinue={handleDevContinue} />
     </SafeAreaView>
   );
 }
@@ -240,11 +252,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: Spacing.screenHorizontal,
+    paddingBottom: Spacing.xl,
   },
   introBox: {
     borderRadius: 12,
@@ -295,10 +311,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     padding: Spacing.md,
     paddingBottom: Spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
