@@ -69,8 +69,14 @@ export async function streamChatCompletion(
       abortSignal,
     });
 
+    let tokenCount = 0;
     for await (const chunk of result.textStream) {
       callbacks.onToken(chunk);
+      // Yield to the UI thread periodically so React can paint between tokens.
+      // Prevents stalls when expo/fetch delivers chunks in bursts.
+      if (++tokenCount % 8 === 0) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      }
     }
     callbacks.onComplete();
   } catch (error) {
