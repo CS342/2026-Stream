@@ -21,9 +21,23 @@
  *   );
  * }
  * ```
+ *
+ * @example Query activity, sleep, and vitals
+ * ```tsx
+ * import { getDailyActivity, getSleep, getVitals, getDateRange } from '@spezivibe/healthkit';
+ *
+ * // Get last 7 days of activity
+ * const activity = await getDailyActivity(getDateRange(7));
+ *
+ * // Get last 7 nights of sleep
+ * const sleep = await getSleep(getDateRange(7));
+ *
+ * // Get last 7 days of vitals
+ * const vitals = await getVitals(getDateRange(7));
+ * ```
  */
 
-// Types
+// Types - Core
 export type {
   HealthKitConfig,
   HealthSample,
@@ -39,6 +53,23 @@ export type {
   HealthKitContextValue,
 } from './types';
 
+// Types - Activity, Sleep, Vitals
+export type {
+  DailyActivityDay,
+  DailyActivityResult,
+  ActiveMinutesTiered,
+  SleepSample,
+  SleepNight,
+  SleepResult,
+  VitalsSample,
+  VitalsDay,
+  VitalsResult,
+  PermissionResult,
+} from './types';
+
+// Enums
+export { SleepStage } from './types';
+
 // Sample Types
 export {
   SampleType,
@@ -48,9 +79,32 @@ export {
   getLabelForType,
 } from './sample-types';
 
-// Services
-export { HealthKitService } from './services';
+// Services - Core
+export { HealthKitService, HKSleepValue, mapHKSleepValueToStage } from './services';
 export type { IHealthKitService } from './services';
+
+// Services - Query Functions
+export {
+  // Activity
+  getDailyActivity,
+  getRecentActivity,
+  calculateSedentaryMinutes,
+  // Sleep
+  getSleep,
+  getRecentSleep,
+  getSleepNightDate,
+  groupSamplesByNight,
+  hasDetailedSleepStages,
+  aggregateSleepNight,
+  calculateAverageSleepDuration,
+  // Vitals
+  getVitals,
+  getRecentVitals,
+  getHeartRateSamples,
+  calculateAverageRestingHR,
+  calculateAverageHRV,
+  FUTURE_WATCH_METRICS,
+} from './services';
 
 // Providers
 export { HealthKitProvider, useHealthKitContext } from './providers';
@@ -71,5 +125,22 @@ export {
 } from './ui';
 export type { ExpoGoFallbackProps } from './ui';
 
-// Utils
+// Utils - Expo detection
 export { isExpoGo, isStandalone, getExpoGoMessage } from './utils';
+
+// Utils - Date helpers
+export {
+  type DateRange,
+  getDateRange,
+  getDayBoundaries,
+  formatDateKey,
+  parseDateKey,
+  getDateKeysInRange,
+  bucketByDay,
+  durationInMinutes,
+  isDateInRange,
+  daysAgo,
+  isSameDay,
+  startOfToday,
+  endOfToday,
+} from './utils';

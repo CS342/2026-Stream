@@ -1,13 +1,18 @@
-export { HealthKitService, HKSleepValue, mapHKSleepValueToStage } from './HealthKitService';
-export type { IHealthKitService } from './HealthKitService';
+/**
+ * HealthKit Query Modules
+ *
+ * Provides high-level query functions for activity, sleep, and vitals data.
+ */
 
-// Query modules
+// Activity queries
 export {
-  // Activity
   getDailyActivity,
   getRecentActivity,
   calculateSedentaryMinutes,
-  // Sleep
+} from './activity';
+
+// Sleep queries
+export {
   getSleep,
   getRecentSleep,
   getSleepNightDate,
@@ -15,11 +20,14 @@ export {
   hasDetailedSleepStages,
   aggregateSleepNight,
   calculateAverageSleepDuration,
-  // Vitals
+} from './sleep';
+
+// Vitals queries
+export {
   getVitals,
   getRecentVitals,
   getHeartRateSamples,
   calculateAverageRestingHR,
   calculateAverageHRV,
   FUTURE_WATCH_METRICS,
-} from './queries';
+} from './vitals';
