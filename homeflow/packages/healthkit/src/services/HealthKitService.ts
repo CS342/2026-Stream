@@ -10,7 +10,11 @@ import type {
   HealthSample,
   HealthStatistics,
   HealthQueryOptions,
+  SleepSample,
+  SleepStage,
+  PermissionResult,
 } from '../types';
+import { SleepStage as SleepStageEnum } from '../types';
 import { SampleType, getUnitForType } from '../sample-types';
 import type {
   QuantityTypeIdentifier,
@@ -32,6 +36,42 @@ if (Platform.OS === 'ios') {
 }
 
 /**
+ * Apple HealthKit sleep analysis values
+ * These map to HKCategoryValueSleepAnalysis in HealthKit
+ */
+export enum HKSleepValue {
+  InBed = 0,
+  Asleep = 1,
+  Awake = 2,
+  // iOS 16+ sleep stages
+  Core = 3,
+  Deep = 4,
+  REM = 5,
+}
+
+/**
+ * Map HealthKit sleep value to our SleepStage enum
+ */
+export function mapHKSleepValueToStage(value: number): SleepStage {
+  switch (value) {
+    case HKSleepValue.InBed:
+      return SleepStageEnum.InBed;
+    case HKSleepValue.Asleep:
+      return SleepStageEnum.Asleep;
+    case HKSleepValue.Awake:
+      return SleepStageEnum.Awake;
+    case HKSleepValue.Core:
+      return SleepStageEnum.Core;
+    case HKSleepValue.Deep:
+      return SleepStageEnum.Deep;
+    case HKSleepValue.REM:
+      return SleepStageEnum.REM;
+    default:
+      return SleepStageEnum.Unknown;
+  }
+}
+
+/**
  * HealthKit Service Interface
  */
 export interface IHealthKitService {
@@ -40,11 +80,16 @@ export interface IHealthKitService {
     readTypes: SampleType[],
     writeTypes?: SampleType[]
   ): Promise<boolean>;
+  requestAuthorizationWithStatus(
+    readTypes: SampleType[],
+    writeTypes?: SampleType[]
+  ): Promise<PermissionResult>;
   getMostRecentSample(type: SampleType): Promise<HealthSample | null>;
   querySamples(
     type: SampleType,
     options: HealthQueryOptions
   ): Promise<HealthSample[]>;
+  querySleepSamples(options: HealthQueryOptions): Promise<SleepSample[]>;
   getStatistics(
     type: SampleType,
     options: HealthQueryOptions
@@ -82,6 +127,72 @@ class HealthKitServiceImpl implements IHealthKitService {
     } catch (error) {
       console.error('HealthKit authorization failed:', error);
       return false;
+    }
+  }
+
+  /**
+   * Request authorization with detailed status information
+   * Note: HealthKit privacy model means read permissions always appear as "not determined"
+   * even when granted. We can only reliably check write permission status.
+   */
+  async requestAuthorizationWithStatus(
+    readTypes: SampleType[],
+    writeTypes: SampleType[] = []
+  ): Promise<PermissionResult> {
+    if (!this.isAvailable() || !healthKit) {
+      return {
+        ok: false,
+        granted: [],
+        denied: [],
+        notDetermined: [...readTypes, ...writeTypes],
+      };
+    }
+
+    try {
+      const write = writeTypes as unknown as SampleTypeIdentifierWriteable[];
+      const read = readTypes as unknown as ObjectTypeIdentifier[];
+
+      await healthKit.requestAuthorization(write, read);
+
+      // Check authorization status for write types
+      // Note: For read types, HealthKit always returns "not determined" for privacy
+      const granted: string[] = [];
+      const denied: string[] = [];
+      const notDetermined: string[] = [...readTypes]; // Read types are always "unknown"
+
+      for (const writeType of writeTypes) {
+        try {
+          const status = await healthKit.authorizationStatusFor(
+            writeType as unknown as SampleTypeIdentifierWriteable
+          );
+          // Status: 0 = notDetermined, 1 = sharingDenied, 2 = sharingAuthorized
+          if (status === 2) {
+            granted.push(writeType);
+          } else if (status === 1) {
+            denied.push(writeType);
+          } else {
+            notDetermined.push(writeType);
+          }
+        } catch {
+          // If we can't get status, assume not determined
+          notDetermined.push(writeType);
+        }
+      }
+
+      return {
+        ok: true,
+        granted,
+        denied,
+        notDetermined,
+      };
+    } catch (error) {
+      console.error('HealthKit authorization failed:', error);
+      return {
+        ok: false,
+        granted: [],
+        denied: [],
+        notDetermined: [...readTypes, ...writeTypes],
+      };
     }
   }
 
@@ -150,6 +261,62 @@ class HealthKitServiceImpl implements IHealthKitService {
       }));
     } catch (error) {
       console.error(`Failed to query samples for ${type}:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Query sleep analysis samples (category type, not quantity)
+   * Returns sleep segments with their stage and duration
+   */
+  async querySleepSamples(options: HealthQueryOptions): Promise<SleepSample[]> {
+    if (!this.isAvailable() || !healthKit) {
+      return [];
+    }
+
+    try {
+      // queryCategorySamples has different signatures in iOS vs non-iOS type definitions
+      // On iOS it accepts options, use type assertion to handle this
+      const queryCategorySamplesFn = healthKit.queryCategorySamples as (
+        identifier: string,
+        options?: {
+          filter?: { startDate?: Date; endDate?: Date };
+          limit?: number;
+          ascending?: boolean;
+        }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) => Promise<readonly any[]>;
+
+      const samples = await queryCategorySamplesFn(
+        'HKCategoryTypeIdentifierSleepAnalysis',
+        {
+          filter: {
+            startDate: options.startDate,
+            endDate: options.endDate,
+          },
+          limit: options.limit,
+          ascending: options.ascending ?? true,
+        }
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return samples.map((sample: any) => {
+        const startDate = new Date(sample.startDate);
+        const endDate = new Date(sample.endDate);
+        const durationMinutes = Math.round(
+          (endDate.getTime() - startDate.getTime()) / (1000 * 60)
+        );
+
+        return {
+          stage: mapHKSleepValueToStage(sample.value),
+          startDate,
+          endDate,
+          durationMinutes,
+          sourceName: sample.sourceRevision?.source?.name,
+        };
+      });
+    } catch (error) {
+      console.error('Failed to query sleep samples:', error);
       return [];
     }
   }
