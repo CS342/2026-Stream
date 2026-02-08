@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
-import Alert from '@blazejkustra/react-native-alert';
+import { Alert } from 'react-native';
 import { ThemedView } from '@/components/themed-view';
 import {
   QuestionnaireForm,

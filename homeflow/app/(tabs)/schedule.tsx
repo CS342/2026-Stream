@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import Alert from '@blazejkustra/react-native-alert';
+import { Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useState, useCallback } from 'react';
 import { ThemedText } from '@/components/themed-text';
