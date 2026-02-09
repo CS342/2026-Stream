@@ -12,6 +12,7 @@ import {
   StyleSheet,
   useColorScheme,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -61,78 +62,84 @@ export default function WelcomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.content}>
-        <Animated.View
-          style={[
-            styles.iconContainer,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: iconScale }],
-            },
-          ]}
-        >
-          <View style={styles.iconBackground}>
-            <IconSymbol name={'heart.fill' as any} size={64} color={StanfordColors.cardinal} />
-          </View>
-        </Animated.View>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={true}>
+        <View style={styles.content}>
+          <Animated.View
+            style={[
+              styles.iconContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ scale: iconScale }],
+              },
+            ]}
+          >
+            <View style={styles.iconBackground}>
+              <IconSymbol name={'heart.fill' as any} size={64} color={StanfordColors.cardinal} />
+            </View>
+          </Animated.View>
 
-        <Animated.View
-          style={{
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }],
-          }}
-        >
-          <Text style={[styles.title, { color: colors.text }]}>
-            Welcome to HomeFlow
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.icon }]}>
-            {STUDY_INFO.institution}
-          </Text>
-        </Animated.View>
-
-        <Animated.View
-          style={[
-            styles.descriptionContainer,
-            {
+          <Animated.View
+            style={{
               opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <Text style={[styles.description, { color: colors.text }]}>
-            Thank you for your interest in the {STUDY_INFO.name}. This app will help us
-            understand how bladder outlet surgery affects your daily patterns.
+            }}
+          >
+            <Text style={[styles.title, { color: colors.text }]}>
+              Welcome to HomeFlow
+            </Text>
+            <Text style={[styles.subtitle, { color: colors.icon }]}>
+              {STUDY_INFO.institution}
+            </Text>
+          </Animated.View>
+
+          <Animated.View
+            style={[
+              styles.descriptionContainer,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+              },
+            ]}
+          >
+            <Text style={[styles.description, { color: colors.text }]}>
+              Thank you for your interest in the {STUDY_INFO.name}. This app will help us
+              understand how bladder outlet surgery affects your daily patterns.
+            </Text>
+
+            <View style={styles.features}>
+              <FeatureItem
+                icon="waveform.path.ecg"
+                title="Passive Monitoring"
+                description="Track activity and sleep with your Apple Watch"
+                colors={colors}
+              />
+              <FeatureItem
+                icon="chart.line.uptrend.xyaxis"
+                title="Symptom Tracking"
+                description="Monitor your urinary symptoms over time"
+                colors={colors}
+              />
+              <FeatureItem
+                icon="lock.shield"
+                title="Privacy First"
+                description="Your data is encrypted and protected"
+                colors={colors}
+              />
+            </View>
+          </Animated.View>
+        </View>
+
+        <Animated.View style={[styles.footer, { opacity: fadeAnim }]}>
+          <Text style={[styles.footerText, { color: colors.icon }]}>
+            The next few screens will check your eligibility and collect some basic information.
           </Text>
-
-          <View style={styles.features}>
-            <FeatureItem
-              icon="waveform.path.ecg"
-              title="Passive Monitoring"
-              description="Track activity and sleep with your Apple Watch"
-              colors={colors}
-            />
-            <FeatureItem
-              icon="chart.line.uptrend.xyaxis"
-              title="Symptom Tracking"
-              description="Monitor your urinary symptoms over time"
-              colors={colors}
-            />
-            <FeatureItem
-              icon="lock.shield"
-              title="Privacy First"
-              description="Your data is encrypted and protected"
-              colors={colors}
-            />
-          </View>
+          <ContinueButton title="Get Started" onPress={handleContinue} />
         </Animated.View>
-      </View>
-
-      <Animated.View style={[styles.footer, { opacity: fadeAnim }]}>
-        <Text style={[styles.footerText, { color: colors.icon }]}>
-          The next few screens will check your eligibility and collect some basic information.
-        </Text>
-        <ContinueButton title="Get Started" onPress={handleContinue} />
-      </Animated.View>
+      </ScrollView>
 
       <DevToolBar currentStep={OnboardingStep.WELCOME} onContinue={handleContinue} />
     </SafeAreaView>
@@ -177,6 +184,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
     paddingHorizontal: Spacing.screenHorizontal,
@@ -206,7 +219,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   descriptionContainer: {
-    flex: 1,
+    marginVertical: Spacing.md,
   },
   description: {
     fontSize: 17,

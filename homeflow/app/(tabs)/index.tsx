@@ -79,6 +79,27 @@ export default function HomeScreen() {
           This will clear all onboarding data and restart the flow
         </ThemedText>
       </ThemedView>
+
+      {/* Extra content to test scrolling */}
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Test Section 1</ThemedText>
+        <ThemedText>This is extra content to ensure the page is scrollable.</ThemedText>
+      </ThemedView>
+      
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Test Section 2</ThemedText>
+        <ThemedText>More content for testing scrolling functionality.</ThemedText>
+      </ThemedView>
+      
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Test Section 3</ThemedText>
+        <ThemedText>Even more content to make this page definitely scrollable.</ThemedText>
+      </ThemedView>
+      
+      <ThemedView style={styles.stepContainer}>
+        <ThemedText type="subtitle">Test Section 4</ThemedText>
+        <ThemedText>Final test section - if you can see this, scrolling works!</ThemedText>
+      </ThemedView>
     </ParallaxScrollView>
   );
 }
