@@ -66,6 +66,7 @@ interface OnboardingState {
 class OnboardingServiceImpl {
   private state: OnboardingState | null = null;
   private initialized = false;
+  private finished = false;
 
   /**
    * Initialize the service by loading state from AsyncStorage
@@ -76,6 +77,7 @@ class OnboardingServiceImpl {
     try {
       const stepData = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_STEP);
       const savedData = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_DATA);
+      const finishedData = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_FINISHED);
 
       if (stepData) {
         this.state = {
@@ -86,6 +88,7 @@ class OnboardingServiceImpl {
         };
       }
 
+      this.finished = finishedData === 'true';
       this.initialized = true;
     } catch (error) {
       console.error('Failed to initialize onboarding service:', error);
@@ -102,11 +105,11 @@ class OnboardingServiceImpl {
   }
 
   /**
-   * Check if onboarding is complete
+   * Check if onboarding is complete (user clicked "Get Started")
    */
   async isComplete(): Promise<boolean> {
     await this.initialize();
-    return this.state?.currentStep === OnboardingStep.COMPLETE;
+    return this.finished;
   }
 
   /**
@@ -207,7 +210,7 @@ class OnboardingServiceImpl {
   }
 
   /**
-   * Complete onboarding
+   * Complete onboarding (called when user clicks "Get Started")
    */
   async complete(): Promise<void> {
     await this.initialize();
@@ -217,6 +220,10 @@ class OnboardingServiceImpl {
       this.state.lastUpdatedAt = new Date().toISOString();
       await this.persistState();
     }
+
+    // Mark onboarding as finished (distinct from reaching the complete screen)
+    this.finished = true;
+    await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_FINISHED, 'true');
   }
 
   /**
@@ -225,10 +232,12 @@ class OnboardingServiceImpl {
   async reset(): Promise<void> {
     this.state = null;
     this.initialized = false;
+    this.finished = false;
 
     await AsyncStorage.multiRemove([
       STORAGE_KEYS.ONBOARDING_STEP,
       STORAGE_KEYS.ONBOARDING_DATA,
+      STORAGE_KEYS.ONBOARDING_FINISHED,
       STORAGE_KEYS.CONSENT_GIVEN,
       STORAGE_KEYS.CONSENT_DATE,
       STORAGE_KEYS.CONSENT_VERSION,
