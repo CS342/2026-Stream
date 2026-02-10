@@ -26,9 +26,10 @@ const STEP_TO_PATH: Record<OnboardingStep, string> = {
 interface DevToolBarProps {
   currentStep: OnboardingStep;
   onContinue: () => void;
+  extraActions?: { label: string; onPress: () => void; color?: string }[];
 }
 
-export function DevToolBar({ currentStep, onContinue }: DevToolBarProps) {
+export function DevToolBar({ currentStep, onContinue, extraActions }: DevToolBarProps) {
   const router = useRouter();
 
   // Only render in development
@@ -89,6 +90,20 @@ export function DevToolBar({ currentStep, onContinue }: DevToolBarProps) {
           <Text style={[styles.buttonText, !hasNext && styles.disabledText]}>Continue</Text>
         </TouchableOpacity>
       </View>
+      {extraActions && extraActions.length > 0 && (
+        <View style={styles.extraRow}>
+          {extraActions.map((action, i) => (
+            <TouchableOpacity
+              key={i}
+              style={[styles.button, { backgroundColor: action.color || '#5856D6' }]}
+              onPress={action.onPress}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.buttonText}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -114,6 +129,11 @@ const styles = StyleSheet.create({
   buttonRow: {
     flexDirection: 'row',
     gap: 8,
+  },
+  extraRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
   },
   button: {
     flex: 1,

@@ -192,7 +192,24 @@ export default function PermissionsScreen() {
         />
       </View>
 
-      <DevToolBar currentStep={OnboardingStep.PERMISSIONS} onContinue={handleDevContinue} />
+      <DevToolBar
+        currentStep={OnboardingStep.PERMISSIONS}
+        onContinue={handleDevContinue}
+        extraActions={[
+          {
+            label: 'Reset HK Permissions',
+            color: '#AF52DE',
+            onPress: () => {
+              setHealthKitStatus('not_determined');
+              setThroneStatus('not_determined');
+              Alert.alert(
+                'Permissions Reset',
+                'App permission state cleared. Tap "Request HealthKit Access" to re-request.\n\nNote: iOS only shows the system dialog once per install. To fully reset, delete and reinstall the app.',
+              );
+            },
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }
