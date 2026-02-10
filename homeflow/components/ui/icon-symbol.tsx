@@ -46,6 +46,10 @@ const MAPPING = {
 
   // Documents
   'doc.text.fill': 'description',
+
+  // Health
+  'moon.fill': 'nightlight',
+  'figure.walk': 'directions-walk',
 } satisfies Record<string, MaterialIconName>;
 
 export type IconSymbolName = keyof typeof MAPPING;
