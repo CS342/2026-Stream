@@ -50,6 +50,14 @@ const MAPPING = {
   // Health
   'moon.fill': 'nightlight',
   'figure.walk': 'directions-walk',
+
+  // Tabs & Home
+  'drop.fill': 'water-drop',
+  'person.fill': 'person',
+  'applewatch': 'watch',
+  'wrench.fill': 'build',
+  'xmark': 'close',
+  'calendar.badge.clock': 'event',
 } satisfies Record<string, MaterialIconName>;
 
 export type IconSymbolName = keyof typeof MAPPING;
