@@ -10,6 +10,16 @@ import { OnboardingService } from '@/lib/services/onboarding-service';
 import { OnboardingStep } from '@/lib/constants';
 
 /**
+ * Simple event emitter for onboarding status changes
+ */
+type StatusListener = () => void;
+const statusListeners: Set<StatusListener> = new Set();
+
+export function notifyOnboardingComplete(): void {
+  statusListeners.forEach((listener) => listener());
+}
+
+/**
  * Hook that returns onboarding completion status
  * Returns null while loading, true if complete, false if not
  */
@@ -28,8 +38,15 @@ export function useOnboardingStatus(): boolean | null {
 
     checkStatus();
 
+    // Listen for status changes
+    const listener = () => {
+      checkStatus();
+    };
+    statusListeners.add(listener);
+
     return () => {
       cancelled = true;
+      statusListeners.delete(listener);
     };
   }, []);
 

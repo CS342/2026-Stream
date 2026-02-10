@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   // Onboarding
   ONBOARDING_STEP: '@homeflow_onboarding_step',
   ONBOARDING_DATA: '@homeflow_onboarding_data',
+  ONBOARDING_FINISHED: '@homeflow_onboarding_finished',
 
   // Consent
   CONSENT_GIVEN: '@homeflow_consent_given',

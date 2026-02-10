@@ -8,7 +8,7 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect, useRouter, Href } from 'expo-router';
-import { useOnboardingStep } from '@/hooks/use-onboarding-status';
+import { useOnboardingStep, useOnboardingStatus } from '@/hooks/use-onboarding-status';
 import { OnboardingStep } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
 import { StanfordColors } from '@/constants/theme';
@@ -16,6 +16,12 @@ import { StanfordColors } from '@/constants/theme';
 export default function OnboardingRouter() {
   const router = useRouter();
   const currentStep = useOnboardingStep();
+  const isOnboardingComplete = useOnboardingStatus();
+
+  // If onboarding is already finished, skip to tabs immediately
+  if (isOnboardingComplete === true) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -67,7 +73,8 @@ export default function OnboardingRouter() {
       return <Redirect href={'/(onboarding)/baseline-survey' as Href} />;
 
     case OnboardingStep.COMPLETE:
-      return <Redirect href="/(tabs)" />;
+      // Show complete screen - user needs to click "Get Started" to finish
+      return <Redirect href={'/(onboarding)/complete' as Href} />;
 
     default:
       return <Redirect href={'/(onboarding)/welcome' as Href} />;

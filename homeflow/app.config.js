@@ -9,9 +9,12 @@ module.exports = {
     userInterfaceStyle: "automatic",
     newArchEnabled: true,
     ios: {
-      supportsTablet: true
+      supportsTablet: true,
+      bundleIdentifier: "com.chehan.homeflow",
+      deploymentTarget: "16.0"
     },
     android: {
+      package: "com.chehan.homeflow",
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
         foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -40,10 +43,20 @@ module.exports = {
         }
       ],
       [
+        "expo-build-properties",
+        {
+          ios: {
+            deploymentTarget: "16.0"
+          }
+        }
+      ],
+      "./plugins/withMinDeploymentTarget",
+      [
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "This app needs access to your health data to display your health metrics and track your progress.",
-          "NSHealthUpdateUsageDescription": "This app needs permission to save health data to track your activities."
+          "NSHealthUpdateUsageDescription": "This app needs permission to save health data to track your activities.",
+          "background": true
         }
       ]
     ],
