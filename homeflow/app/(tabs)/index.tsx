@@ -6,6 +6,7 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { OnboardingService } from '@/lib/services/onboarding-service';
+import { notifyOnboardingComplete } from '@/hooks/use-onboarding-status';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -23,10 +24,9 @@ export default function HomeScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Clear all onboarding data
+              // Clear all onboarding data and notify the root layout
               await OnboardingService.reset();
-              // Navigate back to onboarding flow
-              router.replace('/(onboarding)' as Href);
+              notifyOnboardingComplete();
             } catch (error) {
               console.error('Error resetting onboarding:', error);
               Alert.alert('Error', 'Failed to reset onboarding');
