@@ -76,9 +76,7 @@ export function SurgeryCompleteModal({ visible, onDismiss }: SurgeryCompleteModa
           </Text>
 
           <Text style={[styles.body, isDark && styles.bodyDark]}>
-            You've reached an important milestone in your care journey. We'll
-            continue tracking your recovery patterns so your care team can
-            support you.
+            {"You've reached an important milestone in your care journey. We'll continue tracking your recovery patterns so your care team can support you."}
           </Text>
 
           <Text style={[styles.subtext, isDark && styles.subtextDark]}>

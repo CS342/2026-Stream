@@ -34,10 +34,6 @@ import {
   getDailyActivity,
   getSleep,
   getVitals,
-} from '@/lib/services/healthkit';
-import type { DateRange } from '@/lib/services/healthkit';
-
-import {
   areClinicalRecordsAvailable,
   requestClinicalPermissions,
   getClinicalMedications,
@@ -45,6 +41,7 @@ import {
   getClinicalConditions,
   getClinicalProcedures,
 } from '@/lib/services/healthkit';
+import type { DateRange } from '@/lib/services/healthkit';
 
 // ── Types ───────────────────────────────────────────────────────────
 

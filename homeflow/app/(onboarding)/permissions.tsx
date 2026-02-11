@@ -92,7 +92,7 @@ export default function PermissionsScreen() {
           ]
         );
       }
-    } catch (error) {
+    } catch {
       setHealthKitStatus('denied');
       Alert.alert('Error', 'Failed to request HealthKit permissions. Please try again.');
     }
