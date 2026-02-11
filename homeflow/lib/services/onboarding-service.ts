@@ -41,6 +41,7 @@ export interface OnboardingData {
   // Permissions status
   permissions?: {
     healthKit: 'granted' | 'denied' | 'not_determined';
+    clinicalRecords: 'granted' | 'denied' | 'not_determined' | 'skipped';
     throne: 'granted' | 'denied' | 'not_determined' | 'skipped';
   };
 

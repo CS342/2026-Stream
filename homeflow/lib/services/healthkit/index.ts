@@ -16,6 +16,9 @@ export {
   getDailyActivity,
   getSleep,
   getVitals,
+  getBiologicalSex,
+  getDateOfBirth,
+  getDemographics,
 } from './HealthKitClient';
 
 export { getDateRange } from './mappers';

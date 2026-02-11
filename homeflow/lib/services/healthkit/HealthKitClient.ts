@@ -12,8 +12,12 @@ import {
   queryQuantitySamples,
   queryCategorySamples,
   isHealthDataAvailable,
+  getBiologicalSex as hkGetBiologicalSex,
+  getDateOfBirth as hkGetDateOfBirth,
+  BiologicalSex,
 } from '@kingstinct/react-native-healthkit';
 import type { QuantitySample } from '@kingstinct/react-native-healthkit';
+import type { HealthKitDemographics } from '../fhir/types';
 
 import {
   formatDateKey,
@@ -350,4 +354,67 @@ export async function getVitals(range: DateRange): Promise<VitalsDay[]> {
         : null,
     };
   });
+}
+
+// ── Demographics ────────────────────────────────────────────────────
+
+const BIOLOGICAL_SEX_LABELS: Record<BiologicalSex, string | null> = {
+  [BiologicalSex.notSet]: null,
+  [BiologicalSex.female]: 'Female',
+  [BiologicalSex.male]: 'Male',
+  [BiologicalSex.other]: 'Other',
+};
+
+/**
+ * Get the user's biological sex from HealthKit.
+ * Returns null if not set or unavailable.
+ */
+export async function getBiologicalSex(): Promise<string | null> {
+  if (!isIOS()) return null;
+  try {
+    const sex = await hkGetBiologicalSex();
+    return BIOLOGICAL_SEX_LABELS[sex] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get the user's date of birth from HealthKit.
+ * Returns ISO date string or null if not set.
+ */
+export async function getDateOfBirth(): Promise<string | null> {
+  if (!isIOS()) return null;
+  try {
+    const dob = await hkGetDateOfBirth();
+    if (!dob || dob.getTime() === 0) return null;
+    return dob.toISOString().split('T')[0];
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get demographics (age + biological sex) from HealthKit.
+ * Combines getDateOfBirth and getBiologicalSex into a single call.
+ */
+export async function getDemographics(): Promise<HealthKitDemographics> {
+  const [dob, sex] = await Promise.all([getDateOfBirth(), getBiologicalSex()]);
+
+  let age: number | null = null;
+  if (dob) {
+    const birthDate = new Date(dob);
+    const today = new Date();
+    age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+  }
+
+  return {
+    age,
+    dateOfBirth: dob,
+    biologicalSex: sex,
+  };
 }

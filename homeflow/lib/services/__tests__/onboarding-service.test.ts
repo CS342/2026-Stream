@@ -136,6 +136,7 @@ describe('OnboardingService', () => {
     it('should return true when step is COMPLETE', async () => {
       (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
         if (key === STORAGE_KEYS.ONBOARDING_STEP) return Promise.resolve(OnboardingStep.COMPLETE);
+        if (key === STORAGE_KEYS.ONBOARDING_FINISHED) return Promise.resolve('true');
         return Promise.resolve(null);
       });
 
@@ -467,6 +468,7 @@ describe('OnboardingService', () => {
       expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
         STORAGE_KEYS.ONBOARDING_STEP,
         STORAGE_KEYS.ONBOARDING_DATA,
+        STORAGE_KEYS.ONBOARDING_FINISHED,
         STORAGE_KEYS.CONSENT_GIVEN,
         STORAGE_KEYS.CONSENT_DATE,
         STORAGE_KEYS.CONSENT_VERSION,
