@@ -356,8 +356,7 @@ export default function MedicalHistoryScreen() {
           </View>
 
           <Text style={[styles.prefilledNote, { color: colors.icon }]}>
-            We still need a few details that aren't in your health records.
-            The chatbot will ask only about what's missing.
+            {"We still need a few details that aren't in your health records. The chatbot will ask only about what's missing."}
           </Text>
 
           <ContinueButton

@@ -18,11 +18,6 @@ export default function OnboardingRouter() {
   const currentStep = useOnboardingStep();
   const isOnboardingComplete = useOnboardingStatus();
 
-  // If onboarding is already finished, skip to tabs immediately
-  if (isOnboardingComplete === true) {
-    return <Redirect href="/(tabs)" />;
-  }
-
   useEffect(() => {
     let cancelled = false;
 
@@ -36,12 +31,19 @@ export default function OnboardingRouter() {
       }
     }
 
-    initializeOnboarding();
+    if (!isOnboardingComplete) {
+      initializeOnboarding();
+    }
 
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, isOnboardingComplete]);
+
+  // If onboarding is already finished, skip to tabs immediately
+  if (isOnboardingComplete === true) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   // Show loading while determining step
   if (currentStep === null) {
