@@ -111,16 +111,16 @@ export default function PermissionsScreen() {
           throne: throneStatus as 'granted' | 'denied' | 'not_determined' | 'skipped',
         },
       });
-      await OnboardingService.goToStep(OnboardingStep.MEDICAL_HISTORY);
-      router.push('/(onboarding)/medical-history' as Href);
+      await OnboardingService.goToStep(OnboardingStep.HEALTH_DATA_TEST);
+      router.push('/(onboarding)/health-data-test' as Href);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDevContinue = async () => {
-    await OnboardingService.goToStep(OnboardingStep.MEDICAL_HISTORY);
-    router.push('/(onboarding)/medical-history' as Href);
+    await OnboardingService.goToStep(OnboardingStep.HEALTH_DATA_TEST);
+    router.push('/(onboarding)/health-data-test' as Href);
   };
 
   return (

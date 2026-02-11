@@ -58,6 +58,12 @@ module.exports = {
           "NSHealthUpdateUsageDescription": "This app needs permission to save health data to track your activities.",
           "background": true
         }
+      ],
+      [
+        "./plugins/withClinicalRecords",
+        {
+          "usageDescription": "HomeFlow would like to access your clinical health records to import medications, lab results, and conditions — reducing manual data entry."
+        }
       ]
     ],
     experiments: {

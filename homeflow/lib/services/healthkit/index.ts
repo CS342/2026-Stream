@@ -32,3 +32,23 @@ export type {
   HeartRateStats,
   HealthPermissionResult,
 } from './types';
+
+// ── Clinical Records (FHIR) ────────────────────────────────────────
+
+export {
+  areClinicalRecordsAvailable,
+  requestClinicalPermissions,
+  getClinicalMedications,
+  getClinicalLabResults,
+  getClinicalConditions,
+  getClinicalProcedures,
+  getAllClinicalRecords,
+} from './ClinicalRecordsClient';
+
+export { ClinicalRecordType } from '@/modules/expo-clinical-records/src';
+
+export type {
+  ClinicalRecord,
+  ClinicalRecordQueryOptions,
+  ClinicalRecordsAuthResult,
+} from '@/modules/expo-clinical-records/src';
