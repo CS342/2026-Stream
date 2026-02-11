@@ -23,6 +23,11 @@ import { OnboardingStep } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
 import { ThroneService } from '@/lib/services/throne-service';
 import {
+  requestHealthPermissions,
+  areClinicalRecordsAvailable,
+  requestClinicalPermissions,
+} from '@/lib/services/healthkit';
+import {
   OnboardingProgressBar,
   PermissionCard,
   ContinueButton,
@@ -31,17 +36,6 @@ import {
 } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
-// Import HealthKit conditionally
-let HealthKitService: any = null;
-if (Platform.OS === 'ios') {
-  try {
-    const healthkit = require('@spezivibe/healthkit');
-    HealthKitService = healthkit.HealthKitService;
-  } catch {
-    // HealthKit not available
-  }
-}
-
 export default function PermissionsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -49,30 +43,30 @@ export default function PermissionsScreen() {
 
   const [healthKitStatus, setHealthKitStatus] = useState<PermissionStatus>('not_determined');
   const [throneStatus, setThroneStatus] = useState<PermissionStatus>('not_determined');
+  const [clinicalStatus, setClinicalStatus] = useState<PermissionStatus>('not_determined');
+  const [clinicalAvailable, setClinicalAvailable] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // HealthKit is required, Throne is optional
   const canContinue = healthKitStatus === 'granted' || Platform.OS !== 'ios';
 
   useEffect(() => {
-    // Check initial status
+    let cancelled = false;
     async function checkStatus() {
-      if (HealthKitService?.isAvailable?.()) {
-        // Check if we already have permission
-        // Note: HealthKit doesn't expose a way to check status directly
-        // We'll just start fresh
-      }
-
       const thronePermission = await ThroneService.getPermissionStatus();
-      setThroneStatus(thronePermission);
-    }
+      if (!cancelled) setThroneStatus(thronePermission);
 
+      if (Platform.OS === 'ios') {
+        const available = areClinicalRecordsAvailable();
+        if (!cancelled) setClinicalAvailable(available);
+      }
+    }
     checkStatus();
+    return () => { cancelled = true; };
   }, []);
 
   const handleHealthKitRequest = useCallback(async () => {
-    if (!HealthKitService?.isAvailable?.()) {
-      // Not on iOS or HealthKit not available
+    if (Platform.OS !== 'ios') {
       Alert.alert(
         'HealthKit Not Available',
         'HealthKit is only available on iOS devices. For demo purposes, you can continue.',
@@ -85,20 +79,10 @@ export default function PermissionsScreen() {
     setHealthKitStatus('loading');
 
     try {
-      // Import sample types
-      const { SampleType } = require('@spezivibe/healthkit');
+      const result = await requestHealthPermissions();
+      setHealthKitStatus(result.success ? 'granted' : 'denied');
 
-      const granted = await HealthKitService.requestAuthorization([
-        SampleType.stepCount,
-        SampleType.heartRate,
-        SampleType.sleepAnalysis,
-        SampleType.activeEnergyBurned,
-        SampleType.distanceWalkingRunning,
-      ]);
-
-      setHealthKitStatus(granted ? 'granted' : 'denied');
-
-      if (!granted) {
+      if (!result.success) {
         Alert.alert(
           'Permission Required',
           'HealthKit access is required for the study. Please enable it in Settings.',
@@ -108,21 +92,38 @@ export default function PermissionsScreen() {
           ]
         );
       }
-    } catch (error) {
-      console.error('HealthKit error:', error);
+    } catch {
       setHealthKitStatus('denied');
       Alert.alert('Error', 'Failed to request HealthKit permissions. Please try again.');
     }
   }, []);
 
+  const handleClinicalRequest = useCallback(async () => {
+    if (Platform.OS !== 'ios') {
+      setClinicalStatus('granted');
+      return;
+    }
+
+    setClinicalStatus('loading');
+    try {
+      const result = await requestClinicalPermissions();
+      setClinicalStatus(result.success ? 'granted' : 'denied');
+    } catch {
+      setClinicalStatus('denied');
+      Alert.alert('Error', 'Failed to request clinical records permissions.');
+    }
+  }, []);
+
+  const handleClinicalSkip = useCallback(() => {
+    setClinicalStatus('skipped');
+  }, []);
+
   const handleThroneRequest = useCallback(async () => {
     setThroneStatus('loading');
-
     try {
       const status = await ThroneService.requestPermission();
       setThroneStatus(status);
-    } catch (error) {
-      console.error('Throne error:', error);
+    } catch {
       setThroneStatus('denied');
     }
   }, []);
@@ -134,27 +135,24 @@ export default function PermissionsScreen() {
 
   const handleContinue = async () => {
     setIsLoading(true);
-
     try {
-      // Save permission status
       await OnboardingService.updateData({
         permissions: {
           healthKit: healthKitStatus as 'granted' | 'denied' | 'not_determined',
+          clinicalRecords: clinicalStatus as 'granted' | 'denied' | 'not_determined' | 'skipped',
           throne: throneStatus as 'granted' | 'denied' | 'not_determined' | 'skipped',
         },
       });
-
-      await OnboardingService.goToStep(OnboardingStep.BASELINE_SURVEY);
-      router.push('/(onboarding)/baseline-survey' as Href);
+      await OnboardingService.goToStep(OnboardingStep.HEALTH_DATA_TEST);
+      router.push('/(onboarding)/health-data-test' as Href);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Dev-only handler that bypasses permission requirements
   const handleDevContinue = async () => {
-    await OnboardingService.goToStep(OnboardingStep.BASELINE_SURVEY);
-    router.push('/(onboarding)/baseline-survey' as Href);
+    await OnboardingService.goToStep(OnboardingStep.HEALTH_DATA_TEST);
+    router.push('/(onboarding)/health-data-test' as Href);
   };
 
   return (
@@ -179,7 +177,6 @@ export default function PermissionsScreen() {
           Your data is encrypted and only used for research purposes.
         </Text>
 
-        {/* HealthKit Permission */}
         <PermissionCard
           title="Apple Health"
           description="Access step count, heart rate, sleep data, and activity levels from your iPhone and Apple Watch."
@@ -188,7 +185,17 @@ export default function PermissionsScreen() {
           onRequest={handleHealthKitRequest}
         />
 
-        {/* Throne Permission */}
+        <PermissionCard
+          title="Clinical Records"
+          description="Import medications, lab results, and conditions from your health records — reducing manual data entry."
+          icon="doc.text.fill"
+          status={clinicalStatus}
+          onRequest={handleClinicalRequest}
+          onSkip={handleClinicalSkip}
+          optional
+          comingSoon={!clinicalAvailable}
+        />
+
         <PermissionCard
           title="Throne Uroflow"
           description="Connect your Throne device to track voiding patterns and flow measurements."
@@ -200,7 +207,6 @@ export default function PermissionsScreen() {
           comingSoon
         />
 
-        {/* Info box */}
         <View
           style={[
             styles.infoBox,
@@ -229,24 +235,33 @@ export default function PermissionsScreen() {
         />
       </View>
 
-      <DevToolBar currentStep={OnboardingStep.PERMISSIONS} onContinue={handleDevContinue} />
+      <DevToolBar
+        currentStep={OnboardingStep.PERMISSIONS}
+        onContinue={handleDevContinue}
+        extraActions={[
+          {
+            label: 'Reset HK Permissions',
+            color: '#AF52DE',
+            onPress: () => {
+              setHealthKitStatus('not_determined');
+              setThroneStatus('not_determined');
+              Alert.alert(
+                'Permissions Reset',
+                'App permission state cleared. Tap "Request HealthKit Access" to re-request.\n\nNote: iOS only shows the system dialog once per install. To fully reset, delete and reinstall the app.',
+              );
+            },
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    paddingTop: Spacing.sm,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: Spacing.screenHorizontal,
-  },
+  container: { flex: 1 },
+  header: { paddingTop: Spacing.sm },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: Spacing.screenHorizontal },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,10 +270,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     marginTop: Spacing.md,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-  },
+  title: { fontSize: 28, fontWeight: '700' },
   description: {
     fontSize: 16,
     lineHeight: 23,
@@ -273,11 +285,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: Spacing.sm,
   },
-  infoText: {
-    fontSize: 14,
-    lineHeight: 20,
-    flex: 1,
-  },
+  infoText: { fontSize: 14, lineHeight: 20, flex: 1 },
   footer: {
     padding: Spacing.md,
     paddingBottom: Spacing.lg,

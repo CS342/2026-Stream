@@ -154,6 +154,36 @@ export function getAllSections(): ConsentSection[] {
 }
 
 /**
+ * Short profile-friendly summary of what the user consented to.
+ * Derived from the 'purpose' and 'privacy' sections above.
+ */
+export const CONSENT_PROFILE_SUMMARY =
+  `This study evaluates whether relief of bladder outlet obstruction improves daily activity, sleep, and urinary flow patterns using wearable devices and home uroflow measurement. ` +
+  `Your data is handled securely, used only for research purposes, and de-identified where possible. ` +
+  `You may withdraw at any time without affecting your medical care.`;
+
+/**
+ * Short profile-friendly summary of what data the app can access.
+ * Derived from the 'procedures' and 'hipaa' sections above.
+ */
+export const DATA_PERMISSIONS_SUMMARY = [
+  'Daily activity and sleep data from your Apple Watch or wearable device',
+  'Urinary flow measurements from the Throne uroflow device',
+  'Survey responses about symptoms and medical history',
+  'Medical information shared through Apple Health with your permission',
+];
+
+/**
+ * Study coordinator contact info for the Profile screen.
+ */
+export const STUDY_COORDINATOR = {
+  name: 'HomeFlow Study Team',
+  role: 'Study Coordinator',
+  email: STUDY_INFO.contactEmail,
+  phone: STUDY_INFO.contactPhone,
+} as const;
+
+/**
  * Generate a summary of consent for confirmation
  */
 export function getConsentSummary(): string {

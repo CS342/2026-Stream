@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   // Onboarding
   ONBOARDING_STEP: '@homeflow_onboarding_step',
   ONBOARDING_DATA: '@homeflow_onboarding_data',
+  ONBOARDING_FINISHED: '@homeflow_onboarding_finished',
 
   // Consent
   CONSENT_GIVEN: '@homeflow_consent_given',
@@ -40,9 +41,11 @@ export const CONSENT_KEY = '@consent_given';
  */
 export enum OnboardingStep {
   WELCOME = 'welcome',
-  CHAT = 'chat', // Combined eligibility + medical history
+  CHAT = 'chat', // Eligibility screening
   CONSENT = 'consent',
   PERMISSIONS = 'permissions',
+  HEALTH_DATA_TEST = 'health_data_test', // Dev-only: test HealthKit + Clinical Records queries
+  MEDICAL_HISTORY = 'medical_history', // Medical history collection (chatbot)
   BASELINE_SURVEY = 'baseline_survey',
   COMPLETE = 'complete',
 }
@@ -55,6 +58,8 @@ export const ONBOARDING_FLOW: OnboardingStep[] = [
   OnboardingStep.CHAT,
   OnboardingStep.CONSENT,
   OnboardingStep.PERMISSIONS,
+  OnboardingStep.HEALTH_DATA_TEST,
+  OnboardingStep.MEDICAL_HISTORY,
   OnboardingStep.BASELINE_SURVEY,
   OnboardingStep.COMPLETE,
 ];

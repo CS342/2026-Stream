@@ -13,7 +13,7 @@ import {
   useColorScheme,
   Animated,
 } from 'react-native';
-import { useRouter, Href } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { STUDY_INFO, OnboardingStep } from '@/lib/constants';
@@ -55,8 +55,9 @@ export default function WelcomeScreen() {
   }, [fadeAnim, slideAnim, iconScale]);
 
   const handleContinue = async () => {
-    await OnboardingService.goToStep(OnboardingStep.CHAT);
-    router.push('/(onboarding)/chat' as Href);
+    // Advance to the next step in the onboarding flow (chat/eligibility)
+    await OnboardingService.nextStep();
+    router.replace('/(onboarding)/chat');
   };
 
   return (

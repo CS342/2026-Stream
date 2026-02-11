@@ -5,7 +5,7 @@
  * enrollment flow for the research study. It tracks which step the user
  * is on, stores collected data, and persists state so users can resume.
  *
- * Onboarding steps: WELCOME → CHAT → CONSENT → PERMISSIONS → BASELINE_SURVEY → COMPLETE
+ * Onboarding steps: WELCOME → CHAT → CONSENT → PERMISSIONS → MEDICAL_HISTORY → BASELINE_SURVEY → COMPLETE
  *
  * Key behaviors tested:
  * - State machine navigation (start, nextStep, goToStep, complete)
@@ -136,6 +136,7 @@ describe('OnboardingService', () => {
     it('should return true when step is COMPLETE', async () => {
       (AsyncStorage.getItem as jest.Mock).mockImplementation((key: string) => {
         if (key === STORAGE_KEYS.ONBOARDING_STEP) return Promise.resolve(OnboardingStep.COMPLETE);
+        if (key === STORAGE_KEYS.ONBOARDING_FINISHED) return Promise.resolve('true');
         return Promise.resolve(null);
       });
 
@@ -467,6 +468,7 @@ describe('OnboardingService', () => {
       expect(AsyncStorage.multiRemove).toHaveBeenCalledWith([
         STORAGE_KEYS.ONBOARDING_STEP,
         STORAGE_KEYS.ONBOARDING_DATA,
+        STORAGE_KEYS.ONBOARDING_FINISHED,
         STORAGE_KEYS.CONSENT_GIVEN,
         STORAGE_KEYS.CONSENT_DATE,
         STORAGE_KEYS.CONSENT_VERSION,
@@ -541,8 +543,8 @@ describe('OnboardingService', () => {
       await service.initialize();
 
       const progress = service.getProgress();
-      // CONSENT is index 2 in a 6-step flow (indices 0-5)
-      // Progress = (2 / 5) * 100 = 40%
+      // CONSENT is index 2 in a 7-step flow (indices 0-6)
+      // Progress = (2 / 6) * 100 = 33%
       const expectedIndex = ONBOARDING_FLOW.indexOf(OnboardingStep.CONSENT);
       const expectedProgress = Math.round((expectedIndex / (ONBOARDING_FLOW.length - 1)) * 100);
       expect(progress).toBe(expectedProgress);

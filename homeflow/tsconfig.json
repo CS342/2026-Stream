@@ -9,8 +9,6 @@
       "@spezivibe/chat": ["packages/chat/src"],
       "@spezivibe/chat/*": ["packages/chat/src/*"],
 
-      "@spezivibe/healthkit": ["packages/healthkit/src"],
-      "@spezivibe/healthkit/*": ["packages/healthkit/src/*"],
 
       "@spezivibe/scheduler": ["packages/scheduler/src"],
       "@spezivibe/scheduler/*": ["packages/scheduler/src/*"],
