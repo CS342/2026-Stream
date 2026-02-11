@@ -44,10 +44,10 @@ export default function QuestionnaireScreen() {
           return;
         }
 
-        const responses = JSON.parse(existingResponses) as Array<{
+        const responses = JSON.parse(existingResponses) as {
           response: { id?: string; basedOn?: unknown };
           metadata?: { taskId?: string };
-        }>;
+        }[];
 
         let updated = false;
         for (const record of responses) {

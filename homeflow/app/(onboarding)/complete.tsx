@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { STUDY_INFO, OnboardingStep } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
+import { notifyOnboardingComplete } from '@/hooks/use-onboarding-status';
 import { ContinueButton, DevToolBar } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
@@ -87,6 +88,9 @@ export default function CompleteScreen() {
   const handleContinue = async () => {
     // Mark onboarding as complete
     await OnboardingService.complete();
+
+    // Notify listeners that onboarding is complete (triggers layout re-render)
+    notifyOnboardingComplete();
 
     // Navigate to main app
     router.replace('/(tabs)');

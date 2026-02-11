@@ -43,6 +43,10 @@ export function ChatView({
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Ref keeps latest messages for use in callbacks without stale closures
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (messages.length > 0) {
@@ -72,59 +76,58 @@ export function ChatView({
     setInput('');
     setIsLoading(true);
 
-    // Build messages for LLM
-    const llmMessages: LLMMessage[] = [];
-    if (systemPrompt) {
-      llmMessages.push({ role: 'system', content: systemPrompt });
-    }
-    // Add previous messages
-    messages.forEach((msg) => {
-      if (msg.role !== 'system') {
-        llmMessages.push({ role: msg.role, content: msg.content });
+    try {
+      // Build messages for LLM (read from ref to avoid stale closure)
+      const llmMessages: LLMMessage[] = [];
+      if (systemPrompt) {
+        llmMessages.push({ role: 'system', content: systemPrompt });
       }
-    });
-    llmMessages.push({ role: 'user', content: userMessage.content });
+      messagesRef.current.forEach((msg) => {
+        if (msg.role !== 'system') {
+          llmMessages.push({ role: msg.role, content: msg.content });
+        }
+      });
+      llmMessages.push({ role: 'user', content: userMessage.content });
 
-    abortControllerRef.current = new AbortController();
-    
-    // Track accumulated content for the callback
-    let fullContent = '';
+      abortControllerRef.current = new AbortController();
 
-    await streamChatCompletion(
-      llmMessages,
-      provider,
-      {
-        onToken: (token) => {
-          fullContent += token;
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessage.id
-                ? { ...msg, content: msg.content + token }
-                : msg
-            )
-          );
+      // Track accumulated content for the callback
+      let fullContent = '';
+
+      await streamChatCompletion(
+        llmMessages,
+        provider,
+        {
+          onToken: (token) => {
+            fullContent += token;
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessage.id
+                  ? { ...msg, content: msg.content + token }
+                  : msg
+              )
+            );
+          },
+          onComplete: () => {
+            onResponse?.(fullContent);
+          },
+          onError: (error) => {
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === assistantMessage.id
+                  ? { ...msg, content: `Error: ${error.message}` }
+                  : msg
+              )
+            );
+          },
         },
-        onComplete: () => {
-          setIsLoading(false);
-          abortControllerRef.current = null;
-          onResponse?.(fullContent);
-        },
-        onError: (error) => {
-          setIsLoading(false);
-          abortControllerRef.current = null;
-          // Update the assistant message with error
-          setMessages((prev) =>
-            prev.map((msg) =>
-              msg.id === assistantMessage.id
-                ? { ...msg, content: `Error: ${error.message}` }
-                : msg
-            )
-          );
-        },
-      },
-      abortControllerRef.current.signal
-    );
-  }, [input, isLoading, messages, provider, systemPrompt]);
+        abortControllerRef.current.signal
+      );
+    } finally {
+      setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  }, [input, isLoading, provider, systemPrompt, onResponse]);
 
   const handleStop = useCallback(() => {
     abortControllerRef.current?.abort();
@@ -153,6 +156,7 @@ export function ChatView({
         <FlatList
           ref={flatListRef}
           data={messages}
+          extraData={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={[

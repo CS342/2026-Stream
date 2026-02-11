@@ -54,6 +54,10 @@ function RootLayoutNav() {
         name="modal"
         options={{ presentation: 'modal', title: 'Modal', headerShown: true }}
       />
+      <Stack.Screen
+        name="consent-viewer"
+        options={{ presentation: 'modal', headerShown: false }}
+      />
 
       {/* Index route for initial redirect */}
       <Stack.Screen

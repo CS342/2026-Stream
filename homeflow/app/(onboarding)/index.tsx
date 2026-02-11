@@ -8,7 +8,7 @@
 import React, { useEffect } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect, useRouter, Href } from 'expo-router';
-import { useOnboardingStep } from '@/hooks/use-onboarding-status';
+import { useOnboardingStep, useOnboardingStatus } from '@/hooks/use-onboarding-status';
 import { OnboardingStep } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
 import { StanfordColors } from '@/constants/theme';
@@ -16,6 +16,7 @@ import { StanfordColors } from '@/constants/theme';
 export default function OnboardingRouter() {
   const router = useRouter();
   const currentStep = useOnboardingStep();
+  const isOnboardingComplete = useOnboardingStatus();
 
   useEffect(() => {
     let cancelled = false;
@@ -30,12 +31,19 @@ export default function OnboardingRouter() {
       }
     }
 
-    initializeOnboarding();
+    if (!isOnboardingComplete) {
+      initializeOnboarding();
+    }
 
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, isOnboardingComplete]);
+
+  // If onboarding is already finished, skip to tabs immediately
+  if (isOnboardingComplete === true) {
+    return <Redirect href="/(tabs)" />;
+  }
 
   // Show loading while determining step
   if (currentStep === null) {
@@ -60,11 +68,18 @@ export default function OnboardingRouter() {
     case OnboardingStep.PERMISSIONS:
       return <Redirect href={'/(onboarding)/permissions' as Href} />;
 
+    case OnboardingStep.HEALTH_DATA_TEST:
+      return <Redirect href={'/(onboarding)/health-data-test' as Href} />;
+
+    case OnboardingStep.MEDICAL_HISTORY:
+      return <Redirect href={'/(onboarding)/medical-history' as Href} />;
+
     case OnboardingStep.BASELINE_SURVEY:
       return <Redirect href={'/(onboarding)/baseline-survey' as Href} />;
 
     case OnboardingStep.COMPLETE:
-      return <Redirect href="/(tabs)" />;
+      // Show complete screen - user needs to click "Get Started" to finish
+      return <Redirect href={'/(onboarding)/complete' as Href} />;
 
     default:
       return <Redirect href={'/(onboarding)/welcome' as Href} />;
