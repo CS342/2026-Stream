@@ -4,26 +4,12 @@
  * Collects medical history through natural conversation with AI assistant.
  * This screen appears after consent and permissions (Apple Health / Throne).
  *
- * =============================================================================
- * FUTURE APPLE HEALTH INTEGRATION NOTES:
- * =============================================================================
- *
- * This chatbot currently serves as the ONLY avenue for medical history
- * collection since we are not yet pulling health records from Apple Health.
- *
- * When Apple Health Clinical Records access is available, the intended flow is:
- *   1. Pull available health records from Apple Health (medications, labs,
- *      conditions, procedures) via connected health systems (MyChart, Epic, etc.)
- *   2. Determine which required fields are still missing after the pull
- *   3. Use THIS chatbot to ask the user ONLY about the gaps
- *   4. If Apple Health provides ALL required fields, the chatbot will simply
- *      display: "We got everything we need from your health records.
- *      You're all set!" and show the Continue button immediately.
- *
- * The chatbot acts as a fail-safe to ensure we always collect complete
- * medical history, regardless of what Apple Health can provide.
- *
- * =============================================================================
+ * Flow:
+ *   1. Loading phase: Fetch clinical records + HealthKit demographics in parallel
+ *   2. Build prefill data from health records (FHIR normalization)
+ *   3. If all medical data is prefilled → show summary, skip chatbot
+ *   4. Otherwise → launch chatbot with modified prompt that skips known fields
+ *   5. If no records available → fall back to full chatbot (original behavior)
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
@@ -35,6 +21,8 @@ import {
   Animated,
   Keyboard,
   TouchableWithoutFeedback,
+  ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,16 +33,20 @@ import { OnboardingStep, STUDY_INFO } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
 import { OnboardingProgressBar, ContinueButton, DevToolBar } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { getAllClinicalRecords } from '@/lib/services/healthkit';
+import { getDemographics } from '@/lib/services/healthkit/HealthKitClient';
+import {
+  buildMedicalHistoryPrefill,
+  isFullyPrefilled,
+  getKnownFieldsSummary,
+  buildModifiedSystemPrompt,
+  type MedicalHistoryPrefill,
+} from '@/lib/services/fhir';
 
 /**
- * System prompt for medical history collection.
- *
- * NOTE: Currently this chatbot asks about ALL medical history fields because
- * we are not yet pulling records from Apple Health. When health records
- * integration is implemented, this prompt should be dynamically modified to
- * only ask about fields NOT already filled by health records.
+ * Fallback system prompt used when no clinical records are available.
  */
-const SYSTEM_PROMPT = `You are a friendly research assistant collecting medical history for the HomeFlow BPH study. The participant has already been confirmed eligible and has given informed consent. Now you need to collect their medical history.
+const FALLBACK_SYSTEM_PROMPT = `You are a friendly research assistant collecting medical history for the HomeFlow BPH study. The participant has already been confirmed eligible and has given informed consent. Now you need to collect their medical history.
 
 ## Study Information
 - Name: ${STUDY_INFO.name}
@@ -134,15 +126,18 @@ When ALL medical history sections are complete: [HISTORY_COMPLETE]
 
 Let's start with some basic demographics - could you tell me your full name?"`;
 
-type MedicalHistoryPhase = 'collecting' | 'complete';
+type MedicalHistoryPhase = 'loading' | 'collecting' | 'all_prefilled' | 'complete';
 
 export default function MedicalHistoryScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
-  const [phase, setPhase] = useState<MedicalHistoryPhase>('collecting');
+  const [phase, setPhase] = useState<MedicalHistoryPhase>('loading');
   const [canContinue, setCanContinue] = useState(false);
+  const [systemPrompt, setSystemPrompt] = useState(FALLBACK_SYSTEM_PROMPT);
+  const [prefillData, setPrefillData] = useState<MedicalHistoryPrefill | null>(null);
+  const [knownSummary, setKnownSummary] = useState<string[]>([]);
 
   // Animation for continue button
   const buttonOpacity = useRef(new Animated.Value(0)).current;
@@ -159,6 +154,52 @@ export default function MedicalHistoryScreen() {
     }),
     [apiKey]
   );
+
+  // ── Load clinical records + demographics on mount ─────────────────
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPrefillData() {
+      try {
+        // Fetch clinical records and demographics in parallel
+        const [clinicalRecords, demographics] = await Promise.all([
+          getAllClinicalRecords().catch(() => null),
+          getDemographics().catch(() => ({ age: null, dateOfBirth: null, biologicalSex: null })),
+        ]);
+
+        if (cancelled) return;
+
+        // Build prefill from whatever data we got
+        const prefill = buildMedicalHistoryPrefill(clinicalRecords, demographics);
+        const known = getKnownFieldsSummary(prefill);
+
+        setPrefillData(prefill);
+        setKnownSummary(known);
+
+        if (isFullyPrefilled(prefill)) {
+          // All medical data sections are covered
+          setPhase('all_prefilled');
+          setCanContinue(true);
+        } else if (known.length > 0) {
+          // Some data found — use modified prompt
+          const modifiedPrompt = buildModifiedSystemPrompt(prefill);
+          setSystemPrompt(modifiedPrompt);
+          setPhase('collecting');
+        } else {
+          // No records — fall back to full chatbot
+          setPhase('collecting');
+        }
+      } catch {
+        // On any error, fall back to full chatbot
+        if (!cancelled) {
+          setPhase('collecting');
+        }
+      }
+    }
+
+    loadPrefillData();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (canContinue) {
@@ -182,15 +223,71 @@ export default function MedicalHistoryScreen() {
   }, []);
 
   const handleContinue = async () => {
-    // Save collected data (in a real app, you'd parse the chat transcript)
+    // Build medication/condition lists from prefill data if available
+    const medications: string[] = [];
+    const conditions: string[] = [];
+    const surgicalHistory: string[] = [];
+    const bphTreatmentHistory: string[] = [];
+
+    if (prefillData) {
+      // Collect medication names
+      const medEntries = [
+        prefillData.medications.alphaBlockers,
+        prefillData.medications.fiveARIs,
+        prefillData.medications.anticholinergics,
+        prefillData.medications.beta3Agonists,
+        prefillData.medications.otherBPH,
+      ];
+      for (const entry of medEntries) {
+        if (entry.value) {
+          for (const med of entry.value) {
+            medications.push(med.name);
+            if (med.drugClass !== 'unrelated') {
+              bphTreatmentHistory.push(med.name);
+            }
+          }
+        }
+      }
+
+      // Collect conditions
+      const condEntries = [
+        prefillData.conditions.diabetes,
+        prefillData.conditions.hypertension,
+        prefillData.conditions.bph,
+        prefillData.conditions.other,
+      ];
+      for (const entry of condEntries) {
+        if (entry.value) {
+          for (const cond of entry.value) {
+            conditions.push(cond.name);
+          }
+        }
+      }
+
+      // Collect procedures
+      if (prefillData.surgicalHistory.bphProcedures.value) {
+        for (const proc of prefillData.surgicalHistory.bphProcedures.value) {
+          surgicalHistory.push(proc.name);
+          bphTreatmentHistory.push(proc.name);
+        }
+      }
+      if (prefillData.surgicalHistory.otherProcedures.value) {
+        for (const proc of prefillData.surgicalHistory.otherProcedures.value) {
+          surgicalHistory.push(proc.name);
+        }
+      }
+    }
+
     await OnboardingService.updateData({
       medicalHistory: {
-        medications: [],
-        conditions: [],
+        medications,
+        conditions,
         allergies: [],
-        surgicalHistory: [],
-        bphTreatmentHistory: [],
-        rawTranscript: 'collected via chatbot',
+        surgicalHistory,
+        bphTreatmentHistory,
+        rawTranscript: phase === 'all_prefilled'
+          ? 'prefilled from health records'
+          : 'collected via chatbot + health records',
       },
     });
 
@@ -200,8 +297,11 @@ export default function MedicalHistoryScreen() {
 
   const getPhaseText = () => {
     switch (phase) {
+      case 'loading':
+        return 'Checking your health records...';
       case 'collecting':
         return 'Collecting medical history...';
+      case 'all_prefilled':
       case 'complete':
         return 'Ready to continue!';
       default:
@@ -209,7 +309,72 @@ export default function MedicalHistoryScreen() {
     }
   };
 
-  // If no API key, show a placeholder
+  // ── Loading phase ─────────────────────────────────────────────────
+  if (phase === 'loading') {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          <OnboardingProgressBar currentStep={OnboardingStep.MEDICAL_HISTORY} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={StanfordColors.cardinal} />
+          <Text style={[styles.loadingText, { color: colors.text }]}>
+            Checking your health records...
+          </Text>
+          <Text style={[styles.loadingSubtext, { color: colors.icon }]}>
+            Looking for medications, conditions, and lab results
+          </Text>
+        </View>
+        <DevToolBar currentStep={OnboardingStep.MEDICAL_HISTORY} onContinue={handleContinue} />
+      </SafeAreaView>
+    );
+  }
+
+  // ── All prefilled phase ───────────────────────────────────────────
+  if (phase === 'all_prefilled') {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <View style={styles.header}>
+          <OnboardingProgressBar currentStep={OnboardingStep.MEDICAL_HISTORY} />
+        </View>
+        <ScrollView contentContainerStyle={styles.prefilledContainer}>
+          <IconSymbol name="checkmark.circle.fill" size={56} color="#34C759" />
+          <Text style={[styles.prefilledTitle, { color: colors.text }]}>
+            Health Records Found
+          </Text>
+          <Text style={[styles.prefilledSubtitle, { color: colors.icon }]}>
+            We found the following from your Apple Health records:
+          </Text>
+
+          <View style={[styles.summaryCard, { backgroundColor: colorScheme === 'dark' ? '#1E2022' : '#F5F5F5' }]}>
+            {knownSummary.map((item, index) => (
+              <View key={index} style={styles.summaryRow}>
+                <IconSymbol name="checkmark" size={16} color="#34C759" />
+                <Text style={[styles.summaryText, { color: colors.text }]}>{item}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={[styles.prefilledNote, { color: colors.icon }]}>
+            We still need a few details that aren't in your health records.
+            The chatbot will ask only about what's missing.
+          </Text>
+
+          <ContinueButton
+            title="Continue to Chatbot"
+            onPress={() => {
+              setPhase('collecting');
+              setCanContinue(false);
+            }}
+            style={{ marginTop: Spacing.md }}
+          />
+        </ScrollView>
+        <DevToolBar currentStep={OnboardingStep.MEDICAL_HISTORY} onContinue={handleContinue} />
+      </SafeAreaView>
+    );
+  }
+
+  // ── No API key fallback ───────────────────────────────────────────
   if (!apiKey) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -232,6 +397,7 @@ export default function MedicalHistoryScreen() {
     );
   }
 
+  // ── Chatbot phase (collecting / complete) ─────────────────────────
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -250,7 +416,7 @@ export default function MedicalHistoryScreen() {
 
         <ChatView
           provider={provider}
-          systemPrompt={SYSTEM_PROMPT}
+          systemPrompt={systemPrompt}
           placeholder="Type your response..."
           onResponse={checkForMarkers}
           emptyState={
@@ -343,5 +509,57 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlign: 'center',
     lineHeight: 22,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.screenHorizontal,
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  prefilledContainer: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingHorizontal: Spacing.screenHorizontal,
+    paddingTop: Spacing.xl,
+    gap: Spacing.md,
+  },
+  prefilledTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  prefilledSubtitle: {
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  summaryCard: {
+    width: '100%',
+    borderRadius: 12,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  summaryText: {
+    fontSize: 15,
+    flex: 1,
+  },
+  prefilledNote: {
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
+    paddingHorizontal: Spacing.md,
   },
 });

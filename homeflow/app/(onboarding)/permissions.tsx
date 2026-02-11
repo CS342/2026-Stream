@@ -22,7 +22,11 @@ import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { OnboardingStep } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
 import { ThroneService } from '@/lib/services/throne-service';
-import { requestHealthPermissions } from '@/lib/services/healthkit';
+import {
+  requestHealthPermissions,
+  areClinicalRecordsAvailable,
+  requestClinicalPermissions,
+} from '@/lib/services/healthkit';
 import {
   OnboardingProgressBar,
   PermissionCard,
@@ -39,6 +43,8 @@ export default function PermissionsScreen() {
 
   const [healthKitStatus, setHealthKitStatus] = useState<PermissionStatus>('not_determined');
   const [throneStatus, setThroneStatus] = useState<PermissionStatus>('not_determined');
+  const [clinicalStatus, setClinicalStatus] = useState<PermissionStatus>('not_determined');
+  const [clinicalAvailable, setClinicalAvailable] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // HealthKit is required, Throne is optional
@@ -49,6 +55,11 @@ export default function PermissionsScreen() {
     async function checkStatus() {
       const thronePermission = await ThroneService.getPermissionStatus();
       if (!cancelled) setThroneStatus(thronePermission);
+
+      if (Platform.OS === 'ios') {
+        const available = areClinicalRecordsAvailable();
+        if (!cancelled) setClinicalAvailable(available);
+      }
     }
     checkStatus();
     return () => { cancelled = true; };
@@ -87,6 +98,26 @@ export default function PermissionsScreen() {
     }
   }, []);
 
+  const handleClinicalRequest = useCallback(async () => {
+    if (Platform.OS !== 'ios') {
+      setClinicalStatus('granted');
+      return;
+    }
+
+    setClinicalStatus('loading');
+    try {
+      const result = await requestClinicalPermissions();
+      setClinicalStatus(result.success ? 'granted' : 'denied');
+    } catch {
+      setClinicalStatus('denied');
+      Alert.alert('Error', 'Failed to request clinical records permissions.');
+    }
+  }, []);
+
+  const handleClinicalSkip = useCallback(() => {
+    setClinicalStatus('skipped');
+  }, []);
+
   const handleThroneRequest = useCallback(async () => {
     setThroneStatus('loading');
     try {
@@ -108,6 +139,7 @@ export default function PermissionsScreen() {
       await OnboardingService.updateData({
         permissions: {
           healthKit: healthKitStatus as 'granted' | 'denied' | 'not_determined',
+          clinicalRecords: clinicalStatus as 'granted' | 'denied' | 'not_determined' | 'skipped',
           throne: throneStatus as 'granted' | 'denied' | 'not_determined' | 'skipped',
         },
       });
@@ -151,6 +183,17 @@ export default function PermissionsScreen() {
           icon="heart.fill"
           status={healthKitStatus}
           onRequest={handleHealthKitRequest}
+        />
+
+        <PermissionCard
+          title="Clinical Records"
+          description="Import medications, lab results, and conditions from your health records — reducing manual data entry."
+          icon="doc.text.fill"
+          status={clinicalStatus}
+          onRequest={handleClinicalRequest}
+          onSkip={handleClinicalSkip}
+          optional
+          comingSoon={!clinicalAvailable}
         />
 
         <PermissionCard
