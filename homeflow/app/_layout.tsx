@@ -6,11 +6,11 @@ import 'react-native-reanimated';
 // Global CSS for web (theming for alert dialogs, etc.) - only processed on web
 import '@/assets/styles/global.css';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStatus } from '@/hooks/use-onboarding-status';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { StandardProvider, useStandard } from '@/lib/services/standard-context';
+import { AppThemeProvider, useAppTheme } from '@/lib/theme/ThemeContext';
 
 export const unstable_settings = {
   // Initial route while loading
@@ -79,24 +79,36 @@ function AppContent({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * Inner shell — has access to AppThemeProvider so it can read the resolved theme
+ * and pass it to React Navigation's ThemeProvider + StatusBar.
+ */
+function ThemedApp() {
+  const { theme } = useAppTheme();
+
+  return (
+    <ThemeProvider value={theme.isDark ? DarkTheme : DefaultTheme}>
+      <StandardProvider>
+        <AppContent>
+          <RootLayoutNav />
+          <StatusBar style={theme.isDark ? 'light' : 'dark'} />
+        </AppContent>
+      </StandardProvider>
+    </ThemeProvider>
+  );
+}
+
+/**
  * Root Layout
  *
  * Handles onboarding flow and main app navigation.
  * Users must complete onboarding before accessing the main app.
  */
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <ErrorBoundary>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <StandardProvider>
-          <AppContent>
-            <RootLayoutNav />
-            <StatusBar style="auto" />
-          </AppContent>
-        </StandardProvider>
-      </ThemeProvider>
+      <AppThemeProvider>
+        <ThemedApp />
+      </AppThemeProvider>
     </ErrorBoundary>
   );
 }
