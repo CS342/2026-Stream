@@ -18,8 +18,8 @@ import {
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Constants from 'expo-constants';
 import { ChatView, ChatProvider } from '@spezivibe/chat';
+import { getClientLLMProvider } from '@/lib/config/llm';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { OnboardingStep, STUDY_INFO } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
@@ -83,17 +83,13 @@ export default function OnboardingChatScreen() {
   // Animation for continue button
   const buttonOpacity = useRef(new Animated.Value(0)).current;
 
-  // Get API key from environment
-  const apiKey = Constants.expoConfig?.extra?.openaiApiKey || process.env.EXPO_PUBLIC_OPENAI_API_KEY || '';
-
-  // Chat provider config
+  /**
+   * TODO: Once Firebase backend is set up, move OpenAI calls to a Cloud
+   * Function or Cloud Run endpoint and remove client-side API key usage.
+   */
   const provider: ChatProvider = useMemo(
-    () => ({
-      type: 'openai',
-      apiKey,
-      model: 'gpt-4o-mini',
-    }),
-    [apiKey]
+    () => getClientLLMProvider('gpt-4o-mini') ?? { type: 'openai', apiKey: '', model: 'gpt-4o-mini' },
+    [],
   );
 
   useEffect(() => {
@@ -152,8 +148,8 @@ export default function OnboardingChatScreen() {
     }
   };
 
-  // If no API key, show a placeholder
-  if (!apiKey) {
+  // If no LLM provider, show a placeholder
+  if (!provider.apiKey) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.header}>
