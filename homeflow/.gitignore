@@ -8,6 +8,11 @@ dist/
 # Environment files (contain secrets)
 .env
 .env.local
+.env.throne
+functions/.env
+
+# Throne export output (large JSON)
+scripts/throne/out/
 
 # macOS
 .DS_Store
