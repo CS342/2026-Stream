@@ -58,6 +58,10 @@ function RootLayoutNav() {
         name="consent-viewer"
         options={{ presentation: 'modal', headerShown: false }}
       />
+      <Stack.Screen
+        name="throne-session"
+        options={{ headerShown: false }}
+      />
 
       {/* Index route for initial redirect */}
       <Stack.Screen
