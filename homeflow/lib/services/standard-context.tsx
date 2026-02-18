@@ -4,14 +4,15 @@ import { BackendService, BackendType } from './types';
 import { BackendFactory } from './backend-factory';
 import { getBackendConfig } from './config';
 import { createLogger } from '../utils/logger';
+import { AuthProvider } from '../auth/auth-context';
+import type { IAccountService, UserProfile } from './account-service';
 
 const logger = createLogger('Standard');
 
 /**
- * StandardContext - Local Mode with Scheduler
+ * StandardContext - Backend + Scheduler + Auth
  *
- * Provides backend service and scheduler for local data storage.
- * No authentication is configured in this mode.
+ * Provides backend service, scheduler, and authentication.
  */
 
 interface StandardContextValue {
@@ -35,6 +36,7 @@ export function StandardProvider({
   children,
 }: StandardProviderProps) {
   const [backend, setBackend] = useState<BackendService | null>(null);
+  const [accountService, setAccountService] = useState<IAccountService | null>(null);
   const [backendType, setBackendType] = useState<BackendType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -53,6 +55,7 @@ export function StandardProvider({
       try {
         const config = getBackendConfig();
         const backendInstance = BackendFactory.createBackend(config);
+        const accountServiceInstance = BackendFactory.createAccountService(config);
 
         await Promise.all([
           backendInstance.initialize(),
@@ -62,6 +65,7 @@ export function StandardProvider({
         if (cancelled) return;
 
         setBackend(backendInstance);
+        setAccountService(accountServiceInstance);
         setBackendType(config.type);
         setSchedulerLoading(false);
         setIsLoading(false);
@@ -74,7 +78,7 @@ export function StandardProvider({
           }
         }
 
-        logger.debug('Standard initialized successfully (local mode with scheduler)');
+        logger.debug('Standard initialized successfully');
       } catch (err) {
         if (cancelled) return;
 
@@ -96,6 +100,12 @@ export function StandardProvider({
     setRetryCount((prev) => prev + 1);
   }, []);
 
+  const handleUserChanged = useCallback((user: UserProfile | null) => {
+    if (backend) {
+      backend.setUserId(user?.id ?? null);
+    }
+  }, [backend]);
+
   const standardValue = useMemo(
     () => ({ backend, scheduler, backendType, isLoading, error, retry }),
     [backend, scheduler, backendType, isLoading, error, retry]
@@ -106,11 +116,22 @@ export function StandardProvider({
     [scheduler, schedulerLoading]
   );
 
+  // Don't render AuthProvider until account service is ready
+  if (!accountService) {
+    return (
+      <StandardContext.Provider value={standardValue}>
+        {children}
+      </StandardContext.Provider>
+    );
+  }
+
   return (
     <StandardContext.Provider value={standardValue}>
-      <SchedulerContext.Provider value={schedulerValue}>
-        {children}
-      </SchedulerContext.Provider>
+      <AuthProvider accountService={accountService} onUserChanged={handleUserChanged}>
+        <SchedulerContext.Provider value={schedulerValue}>
+          {children}
+        </SchedulerContext.Provider>
+      </AuthProvider>
     </StandardContext.Provider>
   );
 }

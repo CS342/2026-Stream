@@ -17,6 +17,54 @@ const mockAsyncStorage = {
 // Mock AsyncStorage - this mock persists across jest.resetModules()
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
 
+// Mock Firebase
+jest.mock('firebase/app', () => ({
+  initializeApp: jest.fn(),
+  getApps: jest.fn(() => []),
+  getApp: jest.fn(),
+}));
+
+jest.mock('firebase/auth', () => ({
+  signInWithEmailAndPassword: jest.fn(),
+  createUserWithEmailAndPassword: jest.fn(),
+  signOut: jest.fn(),
+  onAuthStateChanged: jest.fn(() => jest.fn()),
+  updateProfile: jest.fn(),
+  OAuthProvider: jest.fn(),
+  signInWithCredential: jest.fn(),
+  sendPasswordResetEmail: jest.fn(),
+  GoogleAuthProvider: { credential: jest.fn() },
+  initializeAuth: jest.fn(() => ({ currentUser: null })),
+  getReactNativePersistence: jest.fn(),
+}));
+
+jest.mock('firebase/auth/react-native', () => ({
+  initializeAuth: jest.fn(() => ({ currentUser: null })),
+  getReactNativePersistence: jest.fn(),
+}), { virtual: true });
+
+// Mock expo native modules
+jest.mock('expo-apple-authentication', () => ({
+  signInAsync: jest.fn(),
+  AppleAuthenticationScope: { FULL_NAME: 0, EMAIL: 1 },
+  AppleAuthenticationButtonType: { SIGN_IN: 0, SIGN_UP: 1 },
+  AppleAuthenticationButtonStyle: { BLACK: 0, WHITE: 1 },
+  AppleAuthenticationButton: 'AppleAuthenticationButton',
+}));
+
+jest.mock('expo-crypto', () => ({
+  digestStringAsync: jest.fn(() => Promise.resolve('hashed')),
+  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
+}));
+
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn(),
+    signIn: jest.fn(),
+  },
+}));
+
 // Reset mocks before each test
 beforeEach(() => {
   mockAsyncStorage.setItem.mockClear();

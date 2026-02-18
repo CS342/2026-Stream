@@ -11,7 +11,8 @@ module.exports = {
     ios: {
       supportsTablet: true,
       bundleIdentifier: "com.chehan.homeflow",
-      deploymentTarget: "16.0"
+      deploymentTarget: "16.0",
+      usesAppleSignIn: true,
     },
     android: {
       package: "com.chehan.homeflow",
@@ -63,6 +64,13 @@ module.exports = {
         "./plugins/withClinicalRecords",
         {
           "usageDescription": "HomeFlow would like to access your clinical health records to import medications, lab results, and conditions — reducing manual data entry."
+        }
+      ],
+      "expo-apple-authentication",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          iosUrlScheme: "com.googleusercontent.apps.295202330543-6rlqahqi4ncgb5i0tksk3b46omhfin9e",
         }
       ]
     ],
