@@ -363,6 +363,59 @@ describe('AccountService', () => {
   });
 
   /**
+   * Tests for auth method stubs in local mode
+   *
+   * Local mode does not support Firebase auth methods.
+   * These should throw descriptive errors.
+   */
+  describe('auth method stubs (local mode)', () => {
+    it('should throw on signInWithEmail', async () => {
+      const service = createAccountService();
+      await expect(service.signInWithEmail('a@b.com', 'pass')).rejects.toThrow(
+        'not available in local mode'
+      );
+    });
+
+    it('should throw on signUpWithEmail', async () => {
+      const service = createAccountService();
+      await expect(
+        service.signUpWithEmail('a@b.com', 'pass', { firstName: 'A', lastName: 'B' })
+      ).rejects.toThrow('not available in local mode');
+    });
+
+    it('should throw on signInWithApple', async () => {
+      const service = createAccountService();
+      await expect(service.signInWithApple()).rejects.toThrow('not available in local mode');
+    });
+
+    it('should throw on signInWithGoogle', async () => {
+      const service = createAccountService();
+      await expect(service.signInWithGoogle()).rejects.toThrow('not available in local mode');
+    });
+
+    it('should call callback with current state on onAuthStateChanged', async () => {
+      const service = createAccountService();
+      const callback = jest.fn();
+      service.onAuthStateChanged(callback);
+      // Wait for async initialization
+      await new Promise((r) => setTimeout(r, 50));
+      expect(callback).toHaveBeenCalledWith(null);
+    });
+
+    it('should clear profile on signOut', async () => {
+      const service = createAccountService();
+      await service.createAccount({
+        email: 'test@example.com',
+        firstName: 'John',
+        lastName: 'Doe',
+      });
+      await service.signOut();
+      const isAuth = await service.isAuthenticated();
+      expect(isAuth).toBe(false);
+    });
+  });
+
+  /**
    * Tests for error handling
    *
    * Verifies graceful handling of AsyncStorage failures.

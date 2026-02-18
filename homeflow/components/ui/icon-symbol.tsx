@@ -58,6 +58,7 @@ const MAPPING = {
   'wrench.fill': 'build',
   'xmark': 'close',
   'calendar.badge.clock': 'event',
+  'rectangle.portrait.and.arrow.right': 'logout',
 } satisfies Record<string, MaterialIconName>;
 
 export type IconSymbolName = keyof typeof MAPPING;

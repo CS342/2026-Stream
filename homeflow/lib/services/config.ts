@@ -1,32 +1,27 @@
-import { BackendConfig } from './types';
+import { BackendConfig, BackendType } from './types';
 
 /**
- * Backend Configuration - Local Storage Only
+ * Backend Configuration
  *
- * This configuration uses AsyncStorage for local data persistence.
- * Data is stored on-device and will be lost if the app is uninstalled.
- *
- * FOR CLOUD STORAGE (Firebase):
- * Add the Firebase feature when generating your app:
- *   npx create-spezivibe-app --features firebase
- *
- * The Firebase feature replaces this file with one that:
- * - Reads EXPO_PUBLIC_BACKEND_TYPE from environment
- * - Supports both Firebase Firestore and local AsyncStorage
- * - Validates Firebase configuration on startup
- */
-
-const DEFAULT_CONFIG: BackendConfig = {
-  type: 'local',
-};
-
-/**
- * Get the backend configuration
- *
- * Returns local storage config. For Firebase support,
- * regenerate with the Firebase feature enabled.
+ * Reads EXPO_PUBLIC_BACKEND_TYPE from environment to determine storage backend.
+ * Defaults to local AsyncStorage when not set.
  */
 export function getBackendConfig(): BackendConfig {
-  return DEFAULT_CONFIG;
-}
+  const backendType = (process.env.EXPO_PUBLIC_BACKEND_TYPE as BackendType) || 'local';
 
+  if (backendType === 'firebase') {
+    return {
+      type: 'firebase',
+      firebase: {
+        apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY!,
+        authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+        projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID!,
+        storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+        messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+        appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID!,
+      },
+    };
+  }
+
+  return { type: 'local' };
+}
