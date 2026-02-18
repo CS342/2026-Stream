@@ -20,6 +20,9 @@ module.exports = {
         skipLibCheck: true,
         moduleResolution: 'node',
       },
+      diagnostics: {
+        ignoreCodes: [2305], // ignore "module has no exported member" for firebase/auth types
+      },
     }],
   },
   moduleNameMapper: {
