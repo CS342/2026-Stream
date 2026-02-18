@@ -1,27 +1,31 @@
 /**
  * Root Index
  *
- * Initial route that redirects to either onboarding or main app
- * based on the user's onboarding status.
+ * Initial route that redirects based on onboarding and auth status.
+ * Flow: Onboarding -> Auth -> Main App
  */
 
 import React from 'react';
 import { Redirect, Href } from 'expo-router';
 import { useOnboardingStatus } from '@/hooks/use-onboarding-status';
+import { useAuth } from '@/hooks/use-auth';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 
 export default function RootIndex() {
   const onboardingComplete = useOnboardingStatus();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  // While loading, show loading screen
-  if (onboardingComplete === null) {
+  if (onboardingComplete === null || isLoading) {
     return <LoadingScreen />;
   }
 
-  // Redirect based on onboarding status
-  if (onboardingComplete) {
-    return <Redirect href="/(tabs)" />;
+  if (!onboardingComplete) {
+    return <Redirect href={'/(onboarding)' as Href} />;
   }
 
-  return <Redirect href={'/(onboarding)' as Href} />;
+  if (!isAuthenticated) {
+    return <Redirect href={'/(auth)/login' as Href} />;
+  }
+
+  return <Redirect href="/(tabs)" />;
 }

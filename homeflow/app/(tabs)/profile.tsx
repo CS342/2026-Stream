@@ -9,10 +9,12 @@ import {
   Modal,
   Pressable,
   Linking,
+  Alert,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useAuth } from '@/hooks/use-auth';
 import {
   CONSENT_PROFILE_SUMMARY,
   DATA_PERMISSIONS_SUMMARY,
@@ -22,8 +24,26 @@ import {
 export default function ProfileScreen() {
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
+  const { user, signOut } = useAuth();
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut();
+          } catch (error: any) {
+            Alert.alert('Error', error?.message || 'Failed to sign out.');
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={['top']}>
@@ -46,9 +66,20 @@ export default function ProfileScreen() {
             />
             <Text style={[styles.cardLabel, isDark && styles.cardLabelDark]}>Account</Text>
           </View>
-          <Text style={[styles.placeholderText, isDark && styles.placeholderTextDark]}>
-            Account details will appear here once sign-in is enabled.
-          </Text>
+          {user ? (
+            <>
+              <Text style={[styles.accountName, isDark && styles.accountNameDark]}>
+                {user.firstName} {user.lastName}
+              </Text>
+              <Text style={[styles.accountEmail, isDark && styles.accountEmailDark]}>
+                {user.email}
+              </Text>
+            </>
+          ) : (
+            <Text style={[styles.placeholderText, isDark && styles.placeholderTextDark]}>
+              Not signed in.
+            </Text>
+          )}
         </View>
 
         {/* 2. Study Consent & Data Permissions — compact tappable rows */}
@@ -167,6 +198,16 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Sign Out */}
+        <TouchableOpacity
+          style={[styles.signOutButton, isDark && styles.signOutButtonDark]}
+          onPress={handleSignOut}
+          activeOpacity={0.7}
+        >
+          <IconSymbol name="rectangle.portrait.and.arrow.right" size={18} color="#D64545" />
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -315,7 +356,23 @@ const styles = StyleSheet.create({
     color: '#8B92A8',
   },
 
-  // Account placeholder
+  // Account info
+  accountName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2C3E50',
+  },
+  accountNameDark: {
+    color: '#D4D8E8',
+  },
+  accountEmail: {
+    fontSize: 14,
+    color: '#7A7F8E',
+    marginTop: 2,
+  },
+  accountEmailDark: {
+    color: '#6B7394',
+  },
   placeholderText: {
     fontSize: 15,
     color: '#8E8E93',
@@ -324,6 +381,26 @@ const styles = StyleSheet.create({
   },
   placeholderTextDark: {
     color: '#6B7394',
+  },
+
+  // Sign out
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  signOutButtonDark: {
+    backgroundColor: '#141828',
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#D64545',
   },
 
   // Tappable row buttons
