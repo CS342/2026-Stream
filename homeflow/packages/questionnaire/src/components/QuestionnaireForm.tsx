@@ -12,8 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
-import Alert from '@blazejkustra/react-native-alert';
 import { Formik, FormikProps } from 'formik';
 import type { Questionnaire, QuestionnaireResponse, QuestionnaireResponseItem } from 'fhir/r4';
 import { QuestionnaireFormProps } from '../types';

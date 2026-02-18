@@ -12,8 +12,9 @@ import {
   StyleSheet,
   useColorScheme,
   Animated,
+  ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { STUDY_INFO, OnboardingStep } from '@/lib/constants';
@@ -55,13 +56,17 @@ export default function WelcomeScreen() {
   }, [fadeAnim, slideAnim, iconScale]);
 
   const handleContinue = async () => {
-    // Advance to the next step in the onboarding flow (chat/eligibility)
-    await OnboardingService.nextStep();
-    router.replace('/(onboarding)/chat');
+    await OnboardingService.goToStep(OnboardingStep.CHAT);
+    router.push('/(onboarding)/eligibility' as Href);
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        bounces={true}>
       <View style={styles.content}>
         <Animated.View
           style={[
@@ -134,6 +139,7 @@ export default function WelcomeScreen() {
         </Text>
         <ContinueButton title="Get Started" onPress={handleContinue} />
       </Animated.View>
+      </ScrollView>
 
       <DevToolBar currentStep={OnboardingStep.WELCOME} onContinue={handleContinue} />
     </SafeAreaView>
@@ -178,6 +184,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   content: {
     flex: 1,
     paddingHorizontal: Spacing.screenHorizontal,
@@ -207,7 +219,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   descriptionContainer: {
-    flex: 1,
+    marginVertical: Spacing.md,
   },
   description: {
     fontSize: 17,

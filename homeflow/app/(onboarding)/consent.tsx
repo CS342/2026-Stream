@@ -1,11 +1,10 @@
 /**
  * Consent Screen
  *
- * Formal informed consent document with required sections.
- * Users must scroll through and agree before proceeding.
+ * Single scrollable screen with all consent sections, agreement, and signature.
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,37 +23,52 @@ import { OnboardingService } from '@/lib/services/onboarding-service';
 import { ConsentService } from '@/lib/services/consent-service';
 import {
   CONSENT_DOCUMENT,
-  getRequiredSections,
   getConsentSummary,
 } from '@/lib/consent/consent-document';
 import {
   OnboardingProgressBar,
-  ConsentSection,
   ConsentAgreement,
   ContinueButton,
   DevToolBar,
 } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
+/**
+ * Helper function to render text with bold formatting
+ * Converts **text** to bold text
+ */
+function renderFormattedText(text: string, baseStyle: any, boldStyle?: any) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  
+  return (
+    <Text style={baseStyle}>
+      {parts.map((part, index) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          const boldText = part.slice(2, -2);
+          return (
+            <Text key={index} style={[baseStyle, { fontWeight: '700' }]}>
+              {boldText}
+            </Text>
+          );
+        }
+        return <Text key={index}>{part}</Text>;
+      })}
+    </Text>
+  );
+}
+
 export default function ConsentScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
-  const [readSections, setReadSections] = useState<Set<string>>(new Set());
   const [agreed, setAgreed] = useState(false);
   const [signature, setSignature] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const requiredSections = getRequiredSections();
-  const allRequiredRead = requiredSections.every((s) => readSections.has(s.id));
-  const canContinue = allRequiredRead && agreed && signature.trim().length > 0;
-
-  const handleSectionRead = useCallback((sectionId: string) => {
-    setReadSections((prev) => new Set([...prev, sectionId]));
-  }, []);
+  const canContinue = agreed && signature.trim().length > 0;
 
   const handleContinue = async () => {
     if (!canContinue) return;
@@ -62,27 +76,20 @@ export default function ConsentScreen() {
     setIsSubmitting(true);
 
     try {
-      // Record consent
       await ConsentService.recordConsent(signature);
-
-      // Update onboarding
       await OnboardingService.goToStep(OnboardingStep.PERMISSIONS);
-
       router.push('/(onboarding)/permissions' as Href);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Dev-only handler that bypasses consent validation
   const handleDevContinue = async () => {
-    setIsSubmitting(true);
-
     try {
       await OnboardingService.goToStep(OnboardingStep.PERMISSIONS);
       router.push('/(onboarding)/permissions' as Href);
-    } finally {
-      setIsSubmitting(false);
+    } catch (error) {
+      console.error('Dev continue error:', error);
     }
   };
 
@@ -104,60 +111,38 @@ export default function ConsentScreen() {
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
-      >
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}>
+        
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={true}
         keyboardShouldPersistTaps="handled"
-      >
+          bounces={true}>
+          
         {/* Introduction */}
         <View
           style={[
             styles.introBox,
             { backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : 'rgba(140, 21, 21, 0.05)' },
-          ]}
-        >
+            ]}>
           <Text style={[styles.introText, { color: colors.text }]}>
-            Please read each section carefully. Sections marked with a red dot are required.
-            Tap a section to expand it.
+              Please read all sections below carefully before signing.
           </Text>
         </View>
 
-        {/* Consent Sections */}
-        {CONSENT_DOCUMENT.sections.map((section, index) => (
-          <ConsentSection
-            key={section.id}
-            title={section.title}
-            content={section.content}
-            required={section.required}
-            isRead={readSections.has(section.id)}
-            onRead={() => handleSectionRead(section.id)}
-            defaultExpanded={index === 0}
-          />
-        ))}
+          {/* All Consent Sections */}
+          {CONSENT_DOCUMENT.sections.map((section) => (
+            <View key={section.id} style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>
+                {section.title}
+              </Text>
+              {renderFormattedText(section.content, [styles.sectionContent, { color: colors.text }])}
+            </View>
+          ))}
 
-        {/* Progress indicator */}
-        <View style={styles.progressContainer}>
-          <Text style={[styles.progressText, { color: colors.icon }]}>
-            {readSections.size} of {requiredSections.length} required sections read
-          </Text>
-          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: StanfordColors.cardinal,
-                  width: `${(readSections.size / requiredSections.length) * 100}%`,
-                },
-              ]}
-            />
-          </View>
-        </View>
-
-        {/* Agreement checkbox */}
+          {/* Agreement */}
         <ConsentAgreement
           summary={getConsentSummary()}
           agreed={agreed}
@@ -172,8 +157,7 @@ export default function ConsentScreen() {
               backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#FFFFFF',
               borderColor: signature.trim().length > 0 ? '#34C759' : colors.border,
             },
-          ]}
-        >
+            ]}>
           <Text style={[styles.signatureLabel, { color: colors.text }]}>
             Please type your full name to sign
           </Text>
@@ -202,14 +186,13 @@ export default function ConsentScreen() {
             Date: {new Date().toLocaleDateString()}
           </Text>
         </View>
-
       </ScrollView>
       </KeyboardAvoidingView>
 
-      <View style={[styles.footer, { backgroundColor: colors.background }]}>
-        {!allRequiredRead && (
+      <View style={[styles.footer, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+        {!canContinue && (
           <Text style={[styles.footerHint, { color: colors.icon }]}>
-            Please read all required sections before continuing
+            Please agree and sign to continue
           </Text>
         )}
         <ContinueButton
@@ -265,33 +248,30 @@ const styles = StyleSheet.create({
   introBox: {
     borderRadius: 12,
     padding: Spacing.md,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
   introText: {
     fontSize: 15,
     lineHeight: 22,
+    textAlign: 'center',
   },
-  progressContainer: {
-    marginVertical: Spacing.md,
+  section: {
+    marginBottom: Spacing.xl,
   },
-  progressText: {
-    fontSize: 13,
-    marginBottom: 8,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: Spacing.sm,
   },
-  progressBar: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
+  sectionContent: {
+    fontSize: 15,
+    lineHeight: 22,
   },
   signatureContainer: {
     borderRadius: 12,
     borderWidth: 2,
     padding: Spacing.md,
-    marginTop: Spacing.sm,
+    marginTop: Spacing.lg,
   },
   signatureLabel: {
     fontSize: 15,
@@ -314,7 +294,6 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     paddingBottom: Spacing.lg,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.1)',
   },
   footerHint: {
     fontSize: 13,
