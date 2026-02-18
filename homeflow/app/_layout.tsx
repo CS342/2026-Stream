@@ -7,6 +7,7 @@ import 'react-native-reanimated';
 import '@/assets/styles/global.css';
 
 import { useOnboardingStatus } from '@/hooks/use-onboarding-status';
+import { useAuth } from '@/hooks/use-auth';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { StandardProvider, useStandard } from '@/lib/services/standard-context';
@@ -18,13 +19,14 @@ export const unstable_settings = {
 };
 
 /**
- * Navigation stack with onboarding and main app routes
+ * Navigation stack with onboarding, auth, and main app routes
  */
 function RootLayoutNav() {
   const onboardingComplete = useOnboardingStatus();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
-  // While checking onboarding status, show loading
-  if (onboardingComplete === null) {
+  // While checking onboarding/auth status, show loading
+  if (onboardingComplete === null || authLoading) {
     return <LoadingScreen />;
   }
 
@@ -39,10 +41,19 @@ function RootLayoutNav() {
         redirect={onboardingComplete}
       />
 
-      {/* Main app - shown when onboarding complete */}
+      {/* Auth flow - shown when onboarding complete but not signed in */}
+      <Stack.Screen
+        name="(auth)"
+        options={{
+          animation: 'fade',
+        }}
+        redirect={!onboardingComplete || isAuthenticated}
+      />
+
+      {/* Main app - shown when onboarding complete AND signed in */}
       <Stack.Screen
         name="(tabs)"
-        redirect={!onboardingComplete}
+        redirect={!onboardingComplete || !isAuthenticated}
       />
 
       {/* Modal screens */}
@@ -104,8 +115,8 @@ function ThemedApp() {
 /**
  * Root Layout
  *
- * Handles onboarding flow and main app navigation.
- * Users must complete onboarding before accessing the main app.
+ * Handles onboarding, authentication, and main app navigation.
+ * Flow: Onboarding -> Auth -> Main App
  */
 export default function RootLayout() {
   return (

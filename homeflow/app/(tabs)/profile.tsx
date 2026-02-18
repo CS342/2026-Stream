@@ -8,10 +8,12 @@ import {
   Modal,
   Pressable,
   Linking,
+  Alert,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useAuth } from '@/hooks/use-auth';
 import {
   CONSENT_PROFILE_SUMMARY,
   DATA_PERMISSIONS_SUMMARY,
@@ -28,8 +30,26 @@ export default function ProfileScreen() {
   const { theme, appearance, setAppearance } = useAppTheme();
   const { colors: c } = theme;
   const router = useRouter();
+  const { user, signOut } = useAuth();
   const [showConsentModal, setShowConsentModal] = useState(false);
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
+
+  const handleSignOut = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await signOut();
+          } catch (error: any) {
+            Alert.alert('Error', error?.message || 'Failed to sign out.');
+          }
+        },
+      },
+    ]);
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.background }]} edges={['top']}>
@@ -48,9 +68,20 @@ export default function ProfileScreen() {
             <IconSymbol name="person.circle.fill" size={17} color={c.textTertiary} />
             <Text style={[styles.cardLabel, { color: c.textTertiary }]}>Account</Text>
           </View>
-          <Text style={[styles.placeholderText, { color: c.textTertiary }]}>
-            Account details will appear here once sign-in is enabled.
-          </Text>
+          {user ? (
+            <>
+              <Text style={[styles.accountName, { color: c.textPrimary }]}>
+                {user.firstName} {user.lastName}
+              </Text>
+              <Text style={[styles.accountEmail, { color: c.textSecondary }]}>
+                {user.email}
+              </Text>
+            </>
+          ) : (
+            <Text style={[styles.placeholderText, { color: c.textTertiary }]}>
+              Not signed in.
+            </Text>
+          )}
         </View>
 
         {/* 2. Appearance — iOS-style segmented control */}
@@ -175,6 +206,16 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Sign Out */}
+        <TouchableOpacity
+          style={[styles.signOutButton, { backgroundColor: c.card }]}
+          onPress={handleSignOut}
+          activeOpacity={0.7}
+        >
+          <IconSymbol name="rectangle.portrait.and.arrow.right" size={18} color="#D64545" />
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -308,7 +349,23 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
 
-  // Account placeholder
+  // Account info
+  accountName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2C3E50',
+  },
+  accountNameDark: {
+    color: '#D4D8E8',
+  },
+  accountEmail: {
+    fontSize: 14,
+    color: '#7A7F8E',
+    marginTop: 2,
+  },
+  accountEmailDark: {
+    color: '#6B7394',
+  },
   placeholderText: {
     fontSize: 15,
     lineHeight: 22,
@@ -337,6 +394,22 @@ const styles = StyleSheet.create({
   segmentText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+
+  // Sign out
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#D64545',
   },
 
   // Tappable row buttons — iOS Settings style
