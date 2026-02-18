@@ -1,11 +1,8 @@
 /**
  * Account Service
  *
- * Local account management for the research study.
- * Provides a Firebase-ready interface but stores locally for the MVP.
- *
- * Note: For production with Firebase auth, replace the implementation
- * while keeping the same interface.
+ * Defines the account service interface and provides a local implementation.
+ * Firebase implementation is in firebase-account-service.ts.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,23 +22,30 @@ export interface UserProfile {
 }
 
 /**
- * Account service interface (Firebase-compatible)
+ * Account service interface
  */
 export interface IAccountService {
+  // Profile management
   isAuthenticated(): Promise<boolean>;
   getCurrentUser(): Promise<UserProfile | null>;
   createAccount(profile: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>): Promise<UserProfile>;
   updateProfile(updates: Partial<UserProfile>): Promise<UserProfile>;
   deleteAccount(): Promise<void>;
+
+  // Auth methods
+  signInWithEmail(email: string, password: string): Promise<UserProfile>;
+  signUpWithEmail(email: string, password: string, profile: { firstName: string; lastName: string }): Promise<UserProfile>;
+  signInWithApple(): Promise<UserProfile>;
+  signInWithGoogle(): Promise<UserProfile>;
+  signOut(): Promise<void>;
+  sendPasswordResetEmail(email: string): Promise<void>;
+  onAuthStateChanged(callback: (user: UserProfile | null) => void): () => void;
 }
 
 class LocalAccountService implements IAccountService {
   private profile: UserProfile | null = null;
   private initialized = false;
 
-  /**
-   * Initialize by loading profile from storage
-   */
   private async initialize(): Promise<void> {
     if (this.initialized) return;
 
@@ -57,32 +61,20 @@ class LocalAccountService implements IAccountService {
     }
   }
 
-  /**
-   * Generate a local user ID
-   */
   private generateId(): string {
     return `local_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 
-  /**
-   * Check if user is authenticated (has a profile)
-   */
   async isAuthenticated(): Promise<boolean> {
     await this.initialize();
     return this.profile !== null;
   }
 
-  /**
-   * Get the current user profile
-   */
   async getCurrentUser(): Promise<UserProfile | null> {
     await this.initialize();
     return this.profile;
   }
 
-  /**
-   * Create a new account
-   */
   async createAccount(
     profile: Omit<UserProfile, 'id' | 'createdAt' | 'updatedAt'>
   ): Promise<UserProfile> {
@@ -99,9 +91,6 @@ class LocalAccountService implements IAccountService {
     return this.profile;
   }
 
-  /**
-   * Update the user profile
-   */
   async updateProfile(updates: Partial<UserProfile>): Promise<UserProfile> {
     await this.initialize();
 
@@ -119,17 +108,45 @@ class LocalAccountService implements IAccountService {
     return this.profile;
   }
 
-  /**
-   * Delete the account
-   */
   async deleteAccount(): Promise<void> {
     this.profile = null;
     this.initialized = false;
     await AsyncStorage.removeItem(STORAGE_KEYS.ACCOUNT_PROFILE);
   }
+
+  // Auth stubs for local mode — local mode auto-authenticates via createAccount
+  async signInWithEmail(): Promise<UserProfile> {
+    throw new Error('Email sign-in not available in local mode');
+  }
+
+  async signUpWithEmail(): Promise<UserProfile> {
+    throw new Error('Email sign-up not available in local mode');
+  }
+
+  async signInWithApple(): Promise<UserProfile> {
+    throw new Error('Apple sign-in not available in local mode');
+  }
+
+  async signInWithGoogle(): Promise<UserProfile> {
+    throw new Error('Google sign-in not available in local mode');
+  }
+
+  async signOut(): Promise<void> {
+    await this.deleteAccount();
+  }
+
+  async sendPasswordResetEmail(): Promise<void> {
+    throw new Error('Password reset not available in local mode');
+  }
+
+  onAuthStateChanged(callback: (user: UserProfile | null) => void): () => void {
+    // In local mode, immediately fire with current state
+    this.initialize().then(() => callback(this.profile));
+    return () => {};
+  }
 }
 
 /**
- * Singleton instance of the account service
+ * Singleton instance of the local account service
  */
 export const AccountService = new LocalAccountService();
