@@ -42,6 +42,7 @@ import {
 import type { QuantitySample } from "@kingstinct/react-native-healthkit";
 
 import { db, getAuth } from "./firestore";
+import { syncClinicalNotes } from "./clinicalNotesSync";
 
 // ── Metric configuration ──────────────────────────────────────────────────────
 
@@ -396,11 +397,25 @@ export async function syncAllHealthKit(): Promise<SyncAllResult> {
 export async function bootstrapHealthKitSync(): Promise<void> {
   console.log("[HealthKit] bootstrapHealthKitSync: starting");
   try {
-    const result = await syncAllHealthKit();
-    if (result.ok) {
-      console.log("[HealthKit] bootstrapHealthKitSync: all metrics synced OK", result.results);
+    // Quantity samples (heart rate, step count) and clinical notes run in
+    // parallel — they hit different HealthKit APIs so there's no contention.
+    const [hkResult, clinicalResult] = await Promise.all([
+      syncAllHealthKit(),
+      syncClinicalNotes(),
+    ]);
+
+    if (hkResult.ok) {
+      console.log("[HealthKit] bootstrapHealthKitSync: quantity metrics synced OK", hkResult.results);
     } else {
-      console.warn("[HealthKit] bootstrapHealthKitSync: completed with errors", result.results);
+      console.warn("[HealthKit] bootstrapHealthKitSync: quantity metrics had errors", hkResult.results);
+    }
+
+    if (clinicalResult.ok) {
+      console.log(
+        `[HealthKit] bootstrapHealthKitSync: clinical notes synced OK — uploaded: ${clinicalResult.uploaded}, skipped: ${clinicalResult.skipped}`,
+      );
+    } else {
+      console.warn("[HealthKit] bootstrapHealthKitSync: clinical notes sync error:", clinicalResult.error);
     }
   } catch (err) {
     console.error("[HealthKit] bootstrapHealthKitSync: unexpected error:", err);
