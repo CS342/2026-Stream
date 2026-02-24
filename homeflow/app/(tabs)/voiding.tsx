@@ -43,9 +43,9 @@ function groupByDay(sessions: ThroneSession[]): {title: string; date: string; da
     groups[key].push(s);
   }
 
-  // Sort days descending
+  // Sort days descending using the date key string directly (deterministic)
   return Object.entries(groups)
-    .sort(([, a], [, b]) => new Date(b[0].startTs).getTime() - new Date(a[0].startTs).getTime())
+    .sort(([keyA], [keyB]) => new Date(keyB).getTime() - new Date(keyA).getTime())
     .map(([title, data]) => ({title, date: title, data}));
 }
 
