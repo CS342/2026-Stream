@@ -207,6 +207,32 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Developer menu — visible in __DEV__ builds only */}
+        {__DEV__ && (
+          <View style={[styles.card, { backgroundColor: c.card }]}>
+            <View style={styles.cardHeader}>
+              <IconSymbol name={'hammer.fill' as any} size={17} color={c.semanticWarning} />
+              <Text style={[styles.cardLabel, { color: c.semanticWarning }]}>
+                Developer
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.rowButton}
+              onPress={() => router.push('/fhir-parser-test' as Href)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.rowLeft}>
+                <IconSymbol name={'doc.text.magnifyingglass' as any} size={18} color={c.accent} />
+                <Text style={[styles.rowLabel, { color: c.textPrimary }]}>
+                  FHIR Parser Test
+                </Text>
+              </View>
+              <IconSymbol name="chevron.right" size={14} color={c.textTertiary} />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Sign Out */}
         <TouchableOpacity
           style={[styles.signOutButton, { backgroundColor: c.card }]}
