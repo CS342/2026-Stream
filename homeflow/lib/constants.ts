@@ -43,6 +43,7 @@ export enum OnboardingStep {
   WELCOME = 'welcome',
   CHAT = 'chat', // Eligibility screening
   CONSENT = 'consent',
+  ACCOUNT = 'account',
   PERMISSIONS = 'permissions',
   HEALTH_DATA_TEST = 'health_data_test', // Dev-only: test HealthKit + Clinical Records queries
   MEDICAL_HISTORY = 'medical_history', // Medical history collection (chatbot)
@@ -57,6 +58,7 @@ export const ONBOARDING_FLOW: OnboardingStep[] = [
   OnboardingStep.WELCOME,
   OnboardingStep.CHAT,
   OnboardingStep.CONSENT,
+  OnboardingStep.ACCOUNT,
   OnboardingStep.PERMISSIONS,
   OnboardingStep.HEALTH_DATA_TEST,
   OnboardingStep.MEDICAL_HISTORY,
