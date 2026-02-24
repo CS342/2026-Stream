@@ -22,8 +22,10 @@ import {
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { signInAnonymously } from 'firebase/auth';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
+import { auth } from '@/lib/firebase';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -200,6 +202,19 @@ export default function LoginScreen() {
               <Text style={[styles.linkText, { color: StanfordColors.cardinal }]}>Sign Up</Text>
             </TouchableOpacity>
           </View>
+
+          {__DEV__ && (
+            <TouchableOpacity
+              style={styles.devSkipButton}
+              onPress={async () => {
+                await signInAnonymously(auth);
+                router.replace('/(tabs)' as Href);
+              }}
+            >
+              <Text style={styles.devSkipText}>Skip Auth (Dev)</Text>
+            </TouchableOpacity>
+          )}
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -308,6 +323,18 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 15,
+    fontWeight: '600',
+  },
+  devSkipButton: {
+    marginTop: 24,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#34C759',
+    alignItems: 'center',
+  },
+  devSkipText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
 });
