@@ -44,8 +44,9 @@ export interface ThroneMetric {
 }
 
 /**
- * Fetch all sessions from Firestore.
+ * Fetch sessions from Firestore.
  * Sorting and date range filtering done client-side.
+ * By default only returns sessions that have at least one metric (metricCount > 0).
  */
 export async function fetchSessions(opts?: {
   userId?: string;
@@ -57,6 +58,9 @@ export async function fetchSessions(opts?: {
   if (opts?.userId) {
     constraints.push(where("userId", "==", opts.userId));
   }
+
+  // Only return sessions that have actual recorded metric data
+  constraints.push(where("metricCount", ">", 0));
 
   const q = query(collection(db, "sessions"), ...constraints);
   const snap = await getDocs(q);
