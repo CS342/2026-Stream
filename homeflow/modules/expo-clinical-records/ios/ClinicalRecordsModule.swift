@@ -7,6 +7,7 @@ public class ClinicalRecordsModule: Module {
   // Map short string identifiers to HKClinicalTypeIdentifier
   private static let typeMap: [String: HKClinicalTypeIdentifier] = [
     "allergyRecord": .allergyRecord,
+    "clinicalNoteRecord": .clinicalNoteRecord,
     "conditionRecord": .conditionRecord,
     "immunizationRecord": .immunizationRecord,
     "labResultRecord": .labResultRecord,
