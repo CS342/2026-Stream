@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 // Global CSS for web (theming for alert dialogs, etc.) - only processed on web
 import '@/assets/styles/global.css';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/src/services/firebase';
+import { bootstrapHealthKitSync } from '@/src/services/healthkitSync';
 
 import { useOnboardingStatus } from '@/hooks/use-onboarding-status';
 import { useAuth } from '@/hooks/use-auth';
@@ -23,7 +27,33 @@ export const unstable_settings = {
  */
 function RootLayoutNav() {
   const onboardingComplete = useOnboardingStatus();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+
+  // Run bootstrapHealthKitSync exactly once per signed-in uid.
+  // A ref guard prevents re-firing on re-renders or context refreshes.
+  const lastBootstrappedUid = useRef<string | null>(null);
+
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) return;
+    if (lastBootstrappedUid.current === uid) return;
+    lastBootstrappedUid.current = uid;
+
+    // Guaranteed debug write — confirms the app can reach Firestore.
+    const pingPath = `debug/ping-${uid}`;
+    setDoc(doc(db, pingPath), {
+      ok: true,
+      ts: serverTimestamp(),
+      platform: Platform.OS,
+    })
+      .then(() => console.log(`[Firebase] Wrote debug ping: ${pingPath}`))
+      .catch((err) => console.error("[Firebase] Debug ping write failed:", err));
+
+    // Bootstrap HealthKit → Firestore sync (fire-and-forget; never throws).
+    bootstrapHealthKitSync().catch((err) =>
+      console.error("[HealthKit] bootstrapHealthKitSync error:", err),
+    );
+  }, [user?.id]);
 
   // While checking onboarding/auth status, show loading
   if (onboardingComplete === null || authLoading) {
@@ -50,10 +80,10 @@ function RootLayoutNav() {
         redirect={!onboardingComplete || isAuthenticated}
       />
 
-      {/* Main app - shown when onboarding complete AND signed in */}
+      {/* Main app - shown when onboarding complete (auth handled during onboarding) */}
       <Stack.Screen
         name="(tabs)"
-        redirect={!onboardingComplete || !isAuthenticated}
+        redirect={!onboardingComplete}
       />
 
       {/* Modal screens */}
@@ -71,6 +101,12 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="throne-session"
+        options={{ headerShown: false }}
+      />
+
+      {/* Dev-only: FHIR parser test screen (accessible from Profile > Developer) */}
+      <Stack.Screen
+        name="fhir-parser-test"
         options={{ headerShown: false }}
       />
 
