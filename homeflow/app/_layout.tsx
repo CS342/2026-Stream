@@ -104,6 +104,12 @@ function RootLayoutNav() {
         options={{ headerShown: false }}
       />
 
+      {/* Post-surgery recovery instructions (Stanford HoLEP discharge) */}
+      <Stack.Screen
+        name="post-surgery-recovery"
+        options={{ headerShown: false }}
+      />
+
       {/* Dev-only: FHIR parser test screen (accessible from Profile > Developer) */}
       <Stack.Screen
         name="fhir-parser-test"
