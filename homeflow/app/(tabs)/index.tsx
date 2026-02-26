@@ -73,7 +73,7 @@ export default function HomeScreen() {
               Welcome to
             </Text>
             <Text style={[styles.greeting, { color: t.textPrimary }]}>
-              HomeFlow
+              StreamSync
             </Text>
           </View>
           {__DEV__ && (

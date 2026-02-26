@@ -1,6 +1,6 @@
 module.exports = {
   expo: {
-    name: "HomeFlow",
+    name: "StreamSync",
     slug: "my-app",
     version: "1.0.0",
     orientation: "portrait",
@@ -63,7 +63,7 @@ module.exports = {
       [
         "./plugins/withClinicalRecords",
         {
-          "usageDescription": "HomeFlow would like to access your clinical health records to import medications, lab results, and conditions — reducing manual data entry."
+          "usageDescription": "StreamSync would like to access your clinical health records to import medications, lab results, and conditions — reducing manual data entry."
         }
       ],
       "expo-apple-authentication",

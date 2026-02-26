@@ -143,7 +143,7 @@ export default function AccountScreen() {
             <Text style={[styles.subtitle, { color: colors.icon }]}>
               {mode === 'signup'
                 ? 'Create an account to securely store your study data.'
-                : 'Sign in to continue to HomeFlow.'}
+                : 'Sign in to continue to StreamSync.'}
             </Text>
           </View>
 

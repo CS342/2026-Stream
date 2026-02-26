@@ -45,7 +45,7 @@ export interface IntentPattern {
 // --- Data ---
 
 export const GREETING =
-  "Hi there! I'm your setup assistant for the HomeFlow study. I can help you set up your Apple Watch, troubleshoot syncing, or get help with your Throne device. What would you like help with?";
+  "Hi there! I'm your setup assistant for the StreamSync study. I can help you set up your Apple Watch, troubleshoot syncing, or get help with your Throne device. What would you like help with?";
 
 export const QUICK_ACTIONS: QuickAction[] = [
   { label: 'Set up Apple Watch', flowId: 'apple-watch-setup' },
@@ -76,7 +76,7 @@ export const GUIDED_FLOWS: Record<string, GuidedFlow> = {
       {
         id: 'aw-1',
         botMessage:
-          "Let's get your Apple Watch set up with HomeFlow. First, we need to make sure your watch is paired with your iPhone.",
+          "Let's get your Apple Watch set up with StreamSync. First, we need to make sure your watch is paired with your iPhone.",
         checkpoint: {
           question: 'Is your Apple Watch currently paired with your iPhone?',
           type: 'YES_NO',
@@ -105,13 +105,13 @@ export const GUIDED_FLOWS: Record<string, GuidedFlow> = {
       {
         id: 'aw-5',
         botMessage:
-          "Now let's enable data sharing so HomeFlow can read your health data. In the Health app, tap your profile picture in the top-right corner, then tap \"Apps\" and find HomeFlow. Turn on all the data categories listed (steps, heart rate, sleep, and active energy).",
+          "Now let's enable data sharing so StreamSync can read your health data. In the Health app, tap your profile picture in the top-right corner, then tap \"Apps\" and find StreamSync. Turn on all the data categories listed (steps, heart rate, sleep, and active energy).",
         checkpoint: {
-          question: 'Did you turn on the data categories for HomeFlow?',
+          question: 'Did you turn on the data categories for StreamSync?',
           type: 'YES_NO',
           onYes: 'DONE',
           onNo: {
-            hint: 'That\'s okay. Open the Health app → tap your profile picture (top-right) → tap "Apps" → tap "HomeFlow." You should see a list of data categories with toggles. Turn them all on, then let me know.',
+            hint: 'That\'s okay. Open the Health app → tap your profile picture (top-right) → tap "Apps" → tap "StreamSync." You should see a list of data categories with toggles. Turn them all on, then let me know.',
             retryStepId: 'aw-5',
           },
         },
@@ -551,10 +551,10 @@ export const FAREWELL_MESSAGE =
 export const FOLLOW_UP_YES_MESSAGE =
   "Of course! Let's see what else I can help with.";
 
-export const CONCIERGE_SYSTEM_PROMPT = `You are a calm, friendly setup concierge for the HomeFlow app, part of a BPH (benign prostatic hyperplasia) research study at Stanford.
+export const CONCIERGE_SYSTEM_PROMPT = `You are a calm, friendly setup concierge for the StreamSync app, part of a BPH (benign prostatic hyperplasia) research study at Stanford.
 
 Your role:
-- Help users set up their Apple Watch and Apple Health with the HomeFlow app
+- Help users set up their Apple Watch and Apple Health with the StreamSync app
 - Help users set up and troubleshoot their Throne uroflow device
 - Answer questions about the app, the study schedule, and how data collection works
 - Keep responses short (2-3 sentences), calm, and easy to read

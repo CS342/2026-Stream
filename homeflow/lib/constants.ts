@@ -80,7 +80,7 @@ export const CONSENT_VERSION = '1.0.0';
  * Study information
  */
 export const STUDY_INFO = {
-  name: 'HomeFlow BPH Study',
+  name: 'StreamSync BPH Study',
   institution: 'Stanford University',
   principalInvestigator: 'Ryan Sun, MD',
   irbProtocol: 'IRB# -----',
