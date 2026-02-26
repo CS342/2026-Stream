@@ -10,6 +10,7 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { OnboardingService } from '@/lib/services/onboarding-service';
 import { notifyOnboardingComplete } from '@/hooks/use-onboarding-status';
@@ -193,6 +194,27 @@ export default function HomeScreen() {
               Apple Watch data is syncing — all set
             </Text>
           </View>
+        )}
+
+        {/* Recovery Instructions card — shown after surgery */}
+        {surgery.hasPassed && (
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => router.push('/(tabs)/recovery')}
+            style={[styles.card, styles.accentBorder, { backgroundColor: t.card, borderLeftColor: t.accent }]}
+          >
+            <View style={styles.cardHeader}>
+              <IconSymbol name="heart.fill" size={17} color={t.accent} />
+              <Text style={[styles.cardLabel, { color: t.textSecondary }]}>Recovery plan</Text>
+              <IconSymbol name="chevron.right" size={13} color={t.textTertiary} style={{ marginLeft: 'auto' }} />
+            </View>
+            <Text style={[styles.cardValue, { color: t.textPrimary }]}>
+              Your Recovery Plan
+            </Text>
+            <Text style={[styles.cardSubtext, { color: t.textTertiary }]}>
+              Stanford discharge instructions · tap to review
+            </Text>
+          </TouchableOpacity>
         )}
 
         {/* Study info */}
