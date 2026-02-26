@@ -20,7 +20,7 @@ import {
 } from '@spezivibe/chat';
 import type { ChatMessage, ChatTheme, ChatProvider } from '@spezivibe/chat';
 import { useConciergeChat } from '@/lib/chat/useConciergeChat';
-import type { QuickAction } from '@/lib/chat/chatHelperPlaybook';
+import type { QuickAction } from '@/lib/chat/useConciergeChat';
 import { useAppTheme } from '@/lib/theme/ThemeContext';
 import { getClientLLMProvider } from '@/lib/config/llm';
 
@@ -66,9 +66,12 @@ export default function ChatScreen() {
     setInput,
     sendMessage,
     startFlow,
+    startSubMenu,
     activeCheckpoint,
     quickActions,
+    subActions,
     handleStop,
+    resetConversation,
   } = useConciergeChat(provider);
 
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
@@ -95,10 +98,20 @@ export default function ChatScreen() {
   };
 
   const handleQuickAction = (action: QuickAction) => {
-    if (action.comingSoon) {
-      sendMessage('Throne setup');
+    if (action.subActions) {
+      startSubMenu(action);
       return;
     }
+    if (action.comingSoon) {
+      sendMessage(action.label);
+      return;
+    }
+    if (action.flowId) {
+      startFlow(action.flowId);
+    }
+  };
+
+  const handleSubAction = (action: QuickAction) => {
     if (action.flowId) {
       startFlow(action.flowId);
     }
@@ -108,6 +121,10 @@ export default function ChatScreen() {
     sendMessage(answer);
   };
 
+  const handleStartOver = () => {
+    resetConversation();
+  };
+
   // Find the last assistant message to know where to show Yes/No buttons
   const lastAssistantIndex = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -115,6 +132,9 @@ export default function ChatScreen() {
     }
     return -1;
   })();
+
+  // Show Start Over when not at the top-level quick actions and not in subMenu selection
+  const showStartOver = !quickActions && !subActions;
 
   const renderMessage = ({ item, index }: { item: ChatMessage; index: number }) => {
     const showButtons =
@@ -182,6 +202,7 @@ export default function ChatScreen() {
           showsVerticalScrollIndicator={false}
         />
 
+        {/* Top-level quick action chips */}
         {quickActions && (
           <ScrollView
             horizontal
@@ -198,7 +219,6 @@ export default function ChatScreen() {
                     backgroundColor: c.card,
                     borderColor: c.separator,
                   },
-                  action.comingSoon && styles.chipComingSoon,
                 ]}
                 onPress={() => handleQuickAction(action)}
                 activeOpacity={0.7}
@@ -207,15 +227,54 @@ export default function ChatScreen() {
                   style={[
                     styles.chipText,
                     { color: c.textPrimary },
-                    action.comingSoon && styles.chipTextComingSoon,
                   ]}
                 >
                   {action.label}
-                  {action.comingSoon ? ' (coming soon)' : ''}
                 </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
+        )}
+
+        {/* Throne Help sub-topic chips */}
+        {subActions && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickActionsContainer}
+            style={styles.quickActionsScroll}
+          >
+            {subActions.map((action) => (
+              <TouchableOpacity
+                key={action.label}
+                style={[
+                  styles.chip,
+                  styles.subActionChip,
+                  {
+                    backgroundColor: c.card,
+                    borderColor: c.separator,
+                  },
+                ]}
+                onPress={() => handleSubAction(action)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.chipText, { color: c.textPrimary }]}>
+                  {action.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* Start Over button — visible during active flows or follow-up prompts */}
+        {showStartOver && (
+          <View style={styles.startOverRow}>
+            <TouchableOpacity onPress={handleStartOver} activeOpacity={0.6}>
+              <Text style={[styles.startOverText, { color: c.textTertiary }]}>
+                ↩ Start over
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         <MessageInput
@@ -279,15 +338,23 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  chipComingSoon: {
-    opacity: 0.5,
+  subActionChip: {
+    // Slightly taller to distinguish sub-topic chips
+    paddingVertical: 9,
   },
   chipText: {
     fontSize: 14,
     fontWeight: '500',
     lineHeight: 18,
   },
-  chipTextComingSoon: {
-    fontStyle: 'italic',
+
+  // Start over
+  startOverRow: {
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  startOverText: {
+    fontSize: 13,
+    fontWeight: '400',
   },
 });
