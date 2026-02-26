@@ -1,5 +1,5 @@
 /**
- * Central Firebase access point for the HomeFlow app.
+ * Central Firebase access point for the StreamSync app.
  *
  * Intentionally does NOT re-initialize Firebase — that is owned by
  * ./firebase.ts.  This module simply gathers the app-level singletons

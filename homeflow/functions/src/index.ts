@@ -1,5 +1,5 @@
 /**
- * HomeFlow Cloud Functions
+ * StreamSync Cloud Functions
  *
  * - throneIngestDaily: Scheduled daily at 3 AM PT, syncs Throne data to Firestore
  * - syncThroneNow: HTTP trigger for manual/dev sync (requires x-admin-token header)

@@ -46,7 +46,7 @@ import {
 /**
  * Fallback system prompt used when no clinical records are available.
  */
-const FALLBACK_SYSTEM_PROMPT = `You are a friendly research assistant collecting medical history for the HomeFlow BPH study. The participant has already been confirmed eligible and has given informed consent. Now you need to collect their medical history.
+const FALLBACK_SYSTEM_PROMPT = `You are a friendly research assistant collecting medical history for the StreamSync BPH study. The participant has already been confirmed eligible and has given informed consent. Now you need to collect their medical history.
 
 ## Study Information
 - Name: ${STUDY_INFO.name}

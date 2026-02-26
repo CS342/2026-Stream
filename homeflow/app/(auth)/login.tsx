@@ -112,7 +112,7 @@ export default function LoginScreen() {
           <View style={styles.header}>
             <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
             <Text style={[styles.subtitle, { color: colors.icon }]}>
-              Sign in to continue to HomeFlow
+              Sign in to continue to StreamSync
             </Text>
           </View>
 

@@ -1,5 +1,5 @@
 /**
- * Firebase Client SDK initialization for HomeFlow.
+ * Firebase Client SDK initialization for StreamSync.
  * This config is safe to include in client code (public Firebase config).
  */
 
