@@ -11,6 +11,9 @@ import {
   where,
   getDocs,
   QueryConstraint,
+  doc,
+  getDoc,
+  setDoc,
 } from "firebase/firestore";
 import {db} from "./firebase";
 
@@ -81,6 +84,75 @@ export async function fetchSessions(opts?: {
   sessions.sort((a, b) => new Date(b.startTs).getTime() - new Date(a.startTs).getTime());
 
   return sessions;
+}
+
+/**
+ * Batch-fetch metrics for multiple sessions in a single (or few) Firestore
+ * queries. Firestore "in" supports up to 30 values, so large arrays are
+ * automatically split into parallel batches.
+ */
+export async function fetchMetricsBatch(sessionIds: string[]): Promise<ThroneMetric[]> {
+  if (sessionIds.length === 0) return [];
+
+  const BATCH_SIZE = 30;
+  const batches: string[][] = [];
+  for (let i = 0; i < sessionIds.length; i += BATCH_SIZE) {
+    batches.push(sessionIds.slice(i, i + BATCH_SIZE));
+  }
+
+  const snapshots = await Promise.all(
+    batches.map(batch =>
+      getDocs(query(collection(db, 'metrics'), where('sessionId', 'in', batch))),
+    ),
+  );
+
+  return snapshots.flatMap(snap => snap.docs.map(d => d.data() as ThroneMetric));
+}
+
+// ─── Surgery Date ─────────────────────────────────────────────────────────────
+
+/**
+ * Read surgery date from Firestore.
+ * Tries: users/{uid}/profile.surgeryDate → users/{uid}/settings.surgeryDate
+ * Returns an ISO date string (YYYY-MM-DD) or null if not set.
+ */
+export async function fetchSurgeryDate(uid: string): Promise<string | null> {
+  const paths = [
+    `users/${uid}/profile`,
+    `users/${uid}`,
+    `users/${uid}/settings`,
+  ];
+
+  for (const path of paths) {
+    try {
+      const snap = await getDoc(doc(db, path));
+      if (snap.exists()) {
+        const data = snap.data();
+        const sd = data?.surgeryDate;
+        if (sd) {
+          // Handle Firestore Timestamp objects and ISO strings
+          if (typeof sd === 'string') return sd.slice(0, 10);
+          if (sd?.toDate) return (sd.toDate() as Date).toISOString().slice(0, 10);
+        }
+      }
+    } catch {
+      // Path may not exist — try next
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Persist surgery date to Firestore at users/{uid}/settings.
+ * Uses merge so existing fields are not overwritten.
+ */
+export async function saveSurgeryDate(uid: string, dateStr: string): Promise<void> {
+  await setDoc(
+    doc(db, 'users', uid, 'settings'),
+    { surgeryDate: dateStr },
+    { merge: true },
+  );
 }
 
 /**
