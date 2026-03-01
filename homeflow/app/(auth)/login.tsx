@@ -24,6 +24,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
+import { devSkipAuth } from '@/lib/dev-flags';
+import { notifyOnboardingComplete } from '@/hooks/use-onboarding-status';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -82,6 +84,12 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDevSkip = () => {
+    devSkipAuth();
+    notifyOnboardingComplete(); // Ensure onboarding status is fresh
+    router.replace('/(tabs)');
   };
 
   const handleGoogleLogin = async () => {
@@ -200,6 +208,12 @@ export default function LoginScreen() {
               <Text style={[styles.linkText, { color: StanfordColors.cardinal }]}>Sign Up</Text>
             </TouchableOpacity>
           </View>
+
+          {__DEV__ && (
+            <TouchableOpacity style={styles.devSkipButton} onPress={handleDevSkip}>
+              <Text style={styles.devSkipText}>Dev — Skip Sign In</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -309,5 +323,15 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  devSkipButton: {
+    marginTop: Spacing.lg,
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+  },
+  devSkipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FF9500',
   },
 });

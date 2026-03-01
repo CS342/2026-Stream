@@ -9,6 +9,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
+  TouchableOpacity,
   StyleSheet,
   useColorScheme,
   Animated,
@@ -20,6 +21,7 @@ import { STUDY_INFO, OnboardingStep } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
 import { notifyOnboardingComplete } from '@/hooks/use-onboarding-status';
 import { ContinueButton, DevToolBar } from '@/components/onboarding';
+import { devSkipAuth } from '@/lib/dev-flags';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 export default function CompleteScreen() {
@@ -85,14 +87,16 @@ export default function CompleteScreen() {
     });
   }, [checkScale, checkOpacity, contentFade, contentSlide, confettiOpacity]);
 
-  const handleContinue = async () => {
-    // Mark onboarding as complete
+  const handleSignIn = async () => {
     await OnboardingService.complete();
-
-    // Notify listeners that onboarding is complete (triggers layout re-render)
     notifyOnboardingComplete();
+    router.replace('/(auth)/login' as any);
+  };
 
-    // Navigate to main app
+  const handleDevContinue = async () => {
+    devSkipAuth(); // Set flag BEFORE notifyOnboardingComplete so index.tsx re-render skips auth
+    await OnboardingService.complete();
+    notifyOnboardingComplete();
     router.replace('/(tabs)');
   };
 
@@ -190,11 +194,20 @@ export default function CompleteScreen() {
             { opacity: contentFade },
           ]}
         >
-          <ContinueButton title="Get Started" onPress={handleContinue} />
+          <ContinueButton title="Sign In to Continue" onPress={handleSignIn} />
+          {__DEV__ && (
+            <TouchableOpacity
+              style={styles.devBypassButton}
+              onPress={handleDevContinue}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.devBypassText}>Dev — Skip Sign In</Text>
+            </TouchableOpacity>
+          )}
         </Animated.View>
       )}
 
-      <DevToolBar currentStep={OnboardingStep.COMPLETE} onContinue={handleContinue} />
+      <DevToolBar currentStep={OnboardingStep.COMPLETE} onContinue={handleDevContinue} />
     </SafeAreaView>
   );
 }
@@ -300,5 +313,15 @@ const styles = StyleSheet.create({
   footer: {
     padding: Spacing.md,
     paddingBottom: Spacing.lg,
+  },
+  devBypassButton: {
+    marginTop: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
+  },
+  devBypassText: {
+    fontSize: 13,
+    color: '#FF9500',
+    fontWeight: '600',
   },
 });
