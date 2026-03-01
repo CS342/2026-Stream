@@ -916,9 +916,6 @@ export default function MedicalHistoryScreen() {
                 onPress={() => handleConfirmStep(true)}
                 activeOpacity={0.7}
               >
-                <Text style={[reviewStyles.correctionText, { color: colors.icon }]}>
-                  Something's missing or incorrect
-                </Text>
               </TouchableOpacity>
             </View>
           </>
