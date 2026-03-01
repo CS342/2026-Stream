@@ -74,13 +74,80 @@ const RACE_OPTIONS = [
 
 type DemoStage = 'name' | 'ethnicity' | 'race' | 'done';
 
+// Common patient-facing names for surgical procedures, matched by keyword
+const PROCEDURE_COMMON_NAMES: { keywords: string[]; commonName: string }[] = [
+  // BPH / prostate
+  { keywords: ['transurethral resection', 'turp'], commonName: 'Prostate Resection' },
+  { keywords: ['holmium laser enucleation', 'holep'], commonName: 'Laser Prostate Surgery' },
+  { keywords: ['greenlight', 'green light', 'photoselective vaporization', 'pvp'], commonName: 'Laser Prostate Vaporization' },
+  { keywords: ['prostatic urethral lift', 'urolift'], commonName: 'Prostate Lift' },
+  { keywords: ['water vapor', 'rezum'], commonName: 'Steam Prostate Treatment' },
+  { keywords: ['aquablation'], commonName: 'Water Jet Prostate Treatment' },
+  { keywords: ['prostatectomy', 'prostate removal'], commonName: 'Prostate Removal' },
+  // General urology
+  { keywords: ['cystoscopy'], commonName: 'Bladder Scope Exam' },
+  { keywords: ['transurethral resection of bladder', 'turbt'], commonName: 'Bladder Tumor Removal' },
+  { keywords: ['lithotripsy', 'nephrolithotomy', 'ureteroscopy', 'kidney stone'], commonName: 'Kidney Stone Surgery' },
+  // Abdominal / GI
+  { keywords: ['appendectomy', 'appendix'], commonName: 'Appendix Removal' },
+  { keywords: ['cholecystectomy', 'gallbladder'], commonName: 'Gallbladder Removal' },
+  { keywords: ['colectomy', 'colon resection'], commonName: 'Colon Surgery' },
+  { keywords: ['hernia'], commonName: 'Hernia Repair' },
+  { keywords: ['colonoscopy'], commonName: 'Colonoscopy' },
+  { keywords: ['gastrectomy', 'stomach resection'], commonName: 'Stomach Surgery' },
+  // Orthopedic
+  { keywords: ['total hip', 'hip arthroplasty', 'hip replacement'], commonName: 'Hip Replacement' },
+  { keywords: ['total knee', 'knee arthroplasty', 'knee replacement'], commonName: 'Knee Replacement' },
+  { keywords: ['shoulder arthroplasty', 'shoulder replacement'], commonName: 'Shoulder Replacement' },
+  { keywords: ['spinal fusion'], commonName: 'Spinal Fusion' },
+  { keywords: ['laminectomy', 'discectomy', 'microdiscectomy'], commonName: 'Back Surgery' },
+  { keywords: ['carpal tunnel'], commonName: 'Carpal Tunnel Release' },
+  // Cardiac / vascular
+  { keywords: ['coronary artery bypass', 'cabg', 'bypass graft'], commonName: 'Heart Bypass Surgery' },
+  { keywords: ['cardiac catheterization', 'coronary angiography'], commonName: 'Heart Catheterization' },
+  { keywords: ['pacemaker'], commonName: 'Pacemaker Implant' },
+  { keywords: ['valve replacement', 'valvuloplasty'], commonName: 'Heart Valve Surgery' },
+  // Eye / ENT
+  { keywords: ['cataract'], commonName: 'Cataract Surgery' },
+  { keywords: ['tonsillectomy', 'tonsil'], commonName: 'Tonsil Removal' },
+  { keywords: ['adenoidectomy', 'adenoid'], commonName: 'Adenoid Removal' },
+  { keywords: ['septoplasty', 'rhinoplasty'], commonName: 'Nasal Surgery' },
+  // Thyroid / endocrine
+  { keywords: ['thyroidectomy', 'thyroid'], commonName: 'Thyroid Removal' },
+  { keywords: ['parathyroidectomy'], commonName: 'Parathyroid Removal' },
+  // Reproductive
+  { keywords: ['hysterectomy', 'uterus removal'], commonName: 'Uterus Removal' },
+  { keywords: ['oophorectomy', 'ovary removal'], commonName: 'Ovary Removal' },
+  { keywords: ['vasectomy'], commonName: 'Vasectomy' },
+  { keywords: ['circumcision'], commonName: 'Circumcision' },
+  // Breast / skin
+  { keywords: ['mastectomy', 'breast removal'], commonName: 'Breast Removal' },
+  { keywords: ['lumpectomy'], commonName: 'Breast Lump Removal' },
+];
+
+function getCommonProcedureName(name: string): string | undefined {
+  const lower = name.toLowerCase();
+  for (const entry of PROCEDURE_COMMON_NAMES) {
+    if (entry.keywords.some(kw => lower.includes(kw))) {
+      return entry.commonName;
+    }
+  }
+  return undefined;
+}
+
 type EditableMedItem = {
   id: string;
   name: string;        // scientific name + dosage (e.g., "tamsulosin 0.4 mg oral capsule")
   brandName?: string;  // capitalized brand name if found (e.g., "Flomax")
   groupKey: string;
 };
-type EditableProcItem = { id: string; name: string; date?: string; isBPH: boolean };
+type EditableProcItem = {
+  id: string;
+  name: string;        // scientific/FHIR name (e.g., "Transurethral Resection of the Prostate")
+  commonName?: string; // patient-friendly label (e.g., "Prostate Resection")
+  date?: string;
+  isBPH: boolean;
+};
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -182,10 +249,10 @@ export default function MedicalHistoryScreen() {
 
       const procItems: EditableProcItem[] = [];
       (prefill.surgicalHistory.bphProcedures.value ?? []).forEach((p, i) => {
-        procItems.push({ id: `bph_${i}`, name: p.name, date: p.date, isBPH: true });
+        procItems.push({ id: `bph_${i}`, name: p.name, commonName: getCommonProcedureName(p.name), date: p.date, isBPH: true });
       });
       (prefill.surgicalHistory.otherProcedures.value ?? []).forEach((p, i) => {
-        procItems.push({ id: `other_${i}`, name: p.name, date: p.date, isBPH: false });
+        procItems.push({ id: `other_${i}`, name: p.name, commonName: getCommonProcedureName(p.name), date: p.date, isBPH: false });
       });
       setEditableProcs(procItems);
       setEditingProcId(null);
@@ -478,7 +545,14 @@ export default function MedicalHistoryScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={reviewStyles.procNameRow}>
-                    <Text style={[reviewStyles.medName, { color: colors.text }]}>{item.name}</Text>
+                    {item.commonName ? (
+                      <Text style={[reviewStyles.medName, { color: colors.text }]}>
+                        {item.commonName}{' '}
+                        <Text style={reviewStyles.medNameSecondary}>({item.name})</Text>
+                      </Text>
+                    ) : (
+                      <Text style={[reviewStyles.medName, { color: colors.text }]}>{item.name}</Text>
+                    )}
                     {item.date && (
                       <Text style={[reviewStyles.procDate, { color: colors.icon }]}>
                         {formatShortDate(item.date)}
