@@ -22,6 +22,9 @@ import {
   useColorScheme,
   Animated,
   TouchableOpacity,
+  TextInput,
+  Modal,
+  Pressable,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
@@ -54,6 +57,24 @@ const STEP_DESCRIPTIONS = [
   'Past procedures found in your health records.',
 ] as const;
 
+const ETHNICITY_OPTIONS = [
+  'Hispanic or Latino',
+  'Not Hispanic or Latino',
+  'Prefer not to say',
+] as const;
+
+const RACE_OPTIONS = [
+  'American Indian or Alaska Native',
+  'Asian',
+  'Black or African American',
+  'Native Hawaiian or Other Pacific Islander',
+  'White',
+  'More than one race',
+  'Prefer not to say',
+] as const;
+
+type DemoStage = 'name' | 'ethnicity' | 'race' | 'done';
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function formatShortDate(dateStr: string | undefined): string {
@@ -83,6 +104,14 @@ export default function MedicalHistoryScreen() {
   const [reviewStep, setReviewStep] = useState(0);
   const [correctionsNeeded, setCorrectionsNeeded] = useState<Set<number>>(new Set());
   const [prefillData, setPrefillData] = useState<MedicalHistoryPrefill | null>(null);
+
+  // Demographics sequential input state
+  const [demoName, setDemoName] = useState('');
+  const [demoEthnicity, setDemoEthnicity] = useState('');
+  const [demoRace, setDemoRace] = useState('');
+  const [demoStage, setDemoStage] = useState<DemoStage>('name');
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerField, setPickerField] = useState<'ethnicity' | 'race'>('ethnicity');
 
   const stepFade = useRef(new Animated.Value(1)).current;
   const confirmFade = useRef(new Animated.Value(0)).current;
@@ -117,6 +146,10 @@ export default function MedicalHistoryScreen() {
       setPrefillData(prefill);
       setReviewStep(0);
       setCorrectionsNeeded(new Set());
+      setDemoName('');
+      setDemoEthnicity('');
+      setDemoRace('');
+      setDemoStage('name');
       setPhase('reviewing');
     } catch {
       setPhase('reviewing');
@@ -161,6 +194,24 @@ export default function MedicalHistoryScreen() {
       }).start();
     });
   }, [correctionsNeeded, reviewStep, stepFade, confirmFade]);
+
+  // ── Picker handler ────────────────────────────────────────────────
+
+  const handlePickerSelect = useCallback((value: string) => {
+    setPickerVisible(false);
+    if (pickerField === 'ethnicity') {
+      setDemoEthnicity(value);
+      setDemoStage('race');
+    } else {
+      setDemoRace(value);
+      setDemoStage('done');
+    }
+  }, [pickerField]);
+
+  const openPicker = useCallback((field: 'ethnicity' | 'race') => {
+    setPickerField(field);
+    setPickerVisible(true);
+  }, []);
 
   // ── Save and navigate ─────────────────────────────────────────────
 
@@ -212,6 +263,12 @@ export default function MedicalHistoryScreen() {
       }
     }
 
+    const demoSummary = [
+      demoName && `Name: ${demoName}`,
+      demoEthnicity && `Ethnicity: ${demoEthnicity}`,
+      demoRace && `Race: ${demoRace}`,
+    ].filter(Boolean).join(', ');
+
     await OnboardingService.updateData({
       medicalHistory: {
         medications,
@@ -219,7 +276,7 @@ export default function MedicalHistoryScreen() {
         allergies: [],
         surgicalHistory,
         bphTreatmentHistory,
-        rawTranscript: 'reviewed from health records',
+        rawTranscript: `reviewed from health records${demoSummary ? ` | ${demoSummary}` : ''}`,
       },
     });
 
@@ -240,11 +297,13 @@ export default function MedicalHistoryScreen() {
     value,
     found,
     placeholder = 'will ask',
+    showBadge = true,
   }: {
     label: string;
     value: string | null | undefined;
     found: boolean;
     placeholder?: string;
+    showBadge?: boolean;
   }) {
     return (
       <View style={[reviewStyles.dataRow, { borderBottomColor: borderColor }]}>
@@ -253,9 +312,11 @@ export default function MedicalHistoryScreen() {
           {found && value ? (
             <>
               <Text style={[reviewStyles.dataValue, { color: colors.text }]}>{value}</Text>
-              <View style={reviewStyles.sourceBadge}>
-                <Text style={reviewStyles.sourceBadgeText}>Apple Health</Text>
-              </View>
+              {showBadge && (
+                <View style={reviewStyles.sourceBadge}>
+                  <Text style={reviewStyles.sourceBadgeText}>Apple Health</Text>
+                </View>
+              )}
             </>
           ) : (
             <Text style={[reviewStyles.willAskText, { color: colors.icon }]}>
@@ -264,6 +325,60 @@ export default function MedicalHistoryScreen() {
           )}
         </View>
       </View>
+    );
+  }
+
+  function InlineInputRow({
+    label,
+    value,
+    onChange,
+    onSubmit,
+  }: {
+    label: string;
+    value: string;
+    onChange: (v: string) => void;
+    onSubmit: () => void;
+  }) {
+    return (
+      <View style={[reviewStyles.dataRow, { borderBottomColor: borderColor }]}>
+        <Text style={[reviewStyles.dataLabel, { color: colors.icon }]}>{label}</Text>
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          onSubmitEditing={onSubmit}
+          returnKeyType="done"
+          autoFocus
+          style={[reviewStyles.inlineInput, { color: colors.text }]}
+          placeholderTextColor={colors.icon}
+          placeholder="Type here…"
+          autoCapitalize="words"
+          autoCorrect={false}
+        />
+      </View>
+    );
+  }
+
+  function SelectDataRow({
+    label,
+    onPress,
+  }: {
+    label: string;
+    onPress: () => void;
+  }) {
+    return (
+      <TouchableOpacity
+        style={[reviewStyles.dataRow, { borderBottomColor: borderColor }]}
+        onPress={onPress}
+        activeOpacity={0.6}
+      >
+        <Text style={[reviewStyles.dataLabel, { color: colors.icon }]}>{label}</Text>
+        <View style={reviewStyles.dataRight}>
+          <Text style={[reviewStyles.selectHint, { color: StanfordColors.cardinal }]}>
+            Tap to select
+          </Text>
+          <IconSymbol name="chevron.right" size={13} color={StanfordColors.cardinal} />
+        </View>
+      </TouchableOpacity>
     );
   }
 
@@ -338,36 +453,58 @@ export default function MedicalHistoryScreen() {
     switch (reviewStep) {
       case 0:
         return (
-          <>
-            <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
-              <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
-                FROM APPLE HEALTH
-              </Text>
-              <DataRow
-                label="Age"
-                value={prefillData.demographics.age.value != null
-                  ? `${prefillData.demographics.age.value} years`
-                  : null}
-                found={prefillData.demographics.age.confidence !== 'none'}
-              />
-              <DataRow
-                label="Biological Sex"
-                value={prefillData.demographics.biologicalSex.value
-                  ? capitalize(prefillData.demographics.biologicalSex.value)
-                  : null}
-                found={prefillData.demographics.biologicalSex.confidence !== 'none'}
-              />
-            </View>
+          <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
+            {/* Apple Health fields — always static */}
+            <DataRow
+              label="Age"
+              value={prefillData.demographics.age.value != null
+                ? `${prefillData.demographics.age.value} years`
+                : null}
+              found={prefillData.demographics.age.confidence !== 'none'}
+            />
+            <DataRow
+              label="Biological Sex"
+              value={prefillData.demographics.biologicalSex.value
+                ? capitalize(prefillData.demographics.biologicalSex.value)
+                : null}
+              found={prefillData.demographics.biologicalSex.confidence !== 'none'}
+            />
 
-            <View style={[reviewStyles.card, { backgroundColor: sectionBg, marginTop: 12 }]}>
-              <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
-                NOT IN HEALTH RECORDS — WILL ASK
-              </Text>
-              <DataRow label="Full Name" value={null} found={false} />
-              <DataRow label="Ethnicity" value={null} found={false} />
-              <DataRow label="Race" value={null} found={false} />
-            </View>
-          </>
+            {/* Full Name — inline input, then locks as static */}
+            {demoStage === 'name' ? (
+              <InlineInputRow
+                label="Full Name"
+                value={demoName}
+                onChange={setDemoName}
+                onSubmit={() => setDemoStage('ethnicity')}
+              />
+            ) : (
+              <DataRow
+                label="Full Name"
+                value={demoName || '—'}
+                found
+                showBadge={false}
+              />
+            )}
+
+            {/* Ethnicity — tap-to-select, then locks as static */}
+            {(demoStage === 'ethnicity' || demoStage === 'race' || demoStage === 'done') && (
+              demoEthnicity ? (
+                <DataRow label="Ethnicity" value={demoEthnicity} found showBadge={false} />
+              ) : (
+                <SelectDataRow label="Ethnicity" onPress={() => openPicker('ethnicity')} />
+              )
+            )}
+
+            {/* Race — tap-to-select, then locks as static */}
+            {(demoStage === 'race' || demoStage === 'done') && (
+              demoRace ? (
+                <DataRow label="Race" value={demoRace} found showBadge={false} />
+              ) : (
+                <SelectDataRow label="Race" onPress={() => openPicker('race')} />
+              )
+            )}
+          </View>
         );
 
       case 1: {
@@ -539,6 +676,43 @@ export default function MedicalHistoryScreen() {
           </>
         )}
 
+        {/* Bottom sheet picker for Ethnicity / Race */}
+        <Modal
+          visible={pickerVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setPickerVisible(false)}
+        >
+          <Pressable style={reviewStyles.pickerBackdrop} onPress={() => setPickerVisible(false)}>
+            <Pressable style={[reviewStyles.pickerSheet, { backgroundColor: sectionBg }]}>
+              <View style={[reviewStyles.pickerHandle, { backgroundColor: borderColor }]} />
+              <Text style={[reviewStyles.pickerTitle, { color: colors.icon }]}>
+                {pickerField === 'ethnicity' ? 'ETHNICITY' : 'RACE'}
+              </Text>
+              {(pickerField === 'ethnicity' ? ETHNICITY_OPTIONS : RACE_OPTIONS).map(option => {
+                const selected = pickerField === 'ethnicity'
+                  ? demoEthnicity === option
+                  : demoRace === option;
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[reviewStyles.pickerOption, { borderBottomColor: borderColor }]}
+                    onPress={() => handlePickerSelect(option)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[reviewStyles.pickerOptionText, { color: colors.text }]}>
+                      {option}
+                    </Text>
+                    {selected && (
+                      <IconSymbol name="checkmark" size={16} color={StanfordColors.cardinal} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </Pressable>
+          </Pressable>
+        </Modal>
+
         <DevToolBar
           currentStep={OnboardingStep.MEDICAL_HISTORY}
           onContinue={handleContinue}
@@ -705,6 +879,56 @@ const reviewStyles = StyleSheet.create({
   },
   correctionText: {
     fontSize: 14,
+  },
+  inlineInput: {
+    fontSize: 15,
+    fontWeight: '500',
+    textAlign: 'right',
+    flex: 1,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    minHeight: 22,
+  },
+  selectHint: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  pickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  pickerSheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 12,
+    paddingBottom: 40,
+  },
+  pickerHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  pickerTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textAlign: 'center',
+    marginBottom: 4,
+    paddingHorizontal: Spacing.screenHorizontal,
+  },
+  pickerOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.screenHorizontal,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  pickerOptionText: {
+    fontSize: 17,
   },
 });
 
