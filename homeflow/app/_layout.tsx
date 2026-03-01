@@ -18,6 +18,10 @@ export const unstable_settings = {
   initialRouteName: 'index',
 };
 
+// TEMP DEV BYPASS: skip auth requirement so tabs are accessible without signing in.
+// Remove this (and the uses below) when auth is ready to test end-to-end.
+const DEV_BYPASS_AUTH = __DEV__;
+
 /**
  * Navigation stack with onboarding, auth, and main app routes
  */
@@ -29,6 +33,8 @@ function RootLayoutNav() {
   if (onboardingComplete === null || authLoading) {
     return <LoadingScreen />;
   }
+
+  const authed = isAuthenticated || DEV_BYPASS_AUTH;
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -50,10 +56,10 @@ function RootLayoutNav() {
         redirect={!onboardingComplete || isAuthenticated}
       />
 
-      {/* Main app - shown when onboarding complete AND signed in */}
+      {/* Main app - shown when onboarding complete AND signed in (or dev bypass) */}
       <Stack.Screen
         name="(tabs)"
-        redirect={!onboardingComplete || !isAuthenticated}
+        redirect={!onboardingComplete || !authed}
       />
 
       {/* Modal screens */}
