@@ -458,37 +458,40 @@ export default function MedicalHistoryScreen() {
           <OnboardingProgressBar currentStep={OnboardingStep.MEDICAL_HISTORY} />
         </View>
 
-        {/* Step indicator */}
-        <View style={reviewStyles.stepHeader}>
-          <View style={reviewStyles.stepDots}>
-            {[0, 1, 2].map(i => (
-              <View
-                key={i}
-                style={[
-                  reviewStyles.stepDot,
-                  i < reviewStep
-                    ? { backgroundColor: StanfordColors.cardinal, opacity: 0.5 }
-                    : i === reviewStep
-                    ? { backgroundColor: StanfordColors.cardinal }
-                    : { backgroundColor: colors.border },
-                ]}
-              />
-            ))}
-          </View>
-          <Text style={[reviewStyles.stepCounter, { color: colors.icon }]}>
-            Step {reviewStep + 1} of 3
-          </Text>
-        </View>
+        {/* Step indicator and title — hidden on completion screen */}
+        {phase !== 'complete' && (
+          <>
+            <View style={reviewStyles.stepHeader}>
+              <View style={reviewStyles.stepDots}>
+                {[0, 1, 2].map(i => (
+                  <View
+                    key={i}
+                    style={[
+                      reviewStyles.stepDot,
+                      i < reviewStep
+                        ? { backgroundColor: StanfordColors.cardinal, opacity: 0.5 }
+                        : i === reviewStep
+                        ? { backgroundColor: StanfordColors.cardinal }
+                        : { backgroundColor: colors.border },
+                    ]}
+                  />
+                ))}
+              </View>
+              <Text style={[reviewStyles.stepCounter, { color: colors.icon }]}>
+                Step {reviewStep + 1} of 3
+              </Text>
+            </View>
 
-        {/* Title */}
-        <View style={reviewStyles.titleRow}>
-          <Text style={[reviewStyles.stepTitle, { color: colors.text }]}>
-            {STEP_TITLES[reviewStep]}
-          </Text>
-          <Text style={[reviewStyles.stepDesc, { color: colors.icon }]}>
-            {STEP_DESCRIPTIONS[reviewStep]}
-          </Text>
-        </View>
+            <View style={reviewStyles.titleRow}>
+              <Text style={[reviewStyles.stepTitle, { color: colors.text }]}>
+                {STEP_TITLES[reviewStep]}
+              </Text>
+              <Text style={[reviewStyles.stepDesc, { color: colors.icon }]}>
+                {STEP_DESCRIPTIONS[reviewStep]}
+              </Text>
+            </View>
+          </>
+        )}
 
         {/* Step content or completion screen */}
         {phase === 'complete' ? (
