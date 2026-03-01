@@ -40,8 +40,6 @@ import { getDemographics } from '@/lib/services/healthkit/HealthKitClient';
 import {
   buildMedicalHistoryPrefill,
   type MedicalHistoryPrefill,
-  type ClassifiedMedication,
-  type MappedProcedure,
 } from '@/lib/services/fhir';
 import { getMockClinicalRecords, getMockDemographics } from '@/lib/services/healthkit/mock-health-data';
 
@@ -74,6 +72,9 @@ const RACE_OPTIONS = [
 ] as const;
 
 type DemoStage = 'name' | 'ethnicity' | 'race' | 'done';
+
+type EditableMedItem = { id: string; name: string; groupKey: string };
+type EditableProcItem = { id: string; name: string; date?: string; isBPH: boolean };
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -110,11 +111,22 @@ export default function MedicalHistoryScreen() {
   const [demoEthnicity, setDemoEthnicity] = useState('');
   const [demoRace, setDemoRace] = useState('');
   const [demoStage, setDemoStage] = useState<DemoStage>('name');
+  const [demoEditingField, setDemoEditingField] = useState<'name' | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerField, setPickerField] = useState<'ethnicity' | 'race'>('ethnicity');
 
+  // Editable medication/procedure items (local copies initialized from prefill)
+  const [editableMeds, setEditableMeds] = useState<EditableMedItem[]>([]);
+  const [editingMedId, setEditingMedId] = useState<string | null>(null);
+  const [editingMedValue, setEditingMedValue] = useState('');
+  const [editableProcs, setEditableProcs] = useState<EditableProcItem[]>([]);
+  const [editingProcId, setEditingProcId] = useState<string | null>(null);
+  const [editingProcValue, setEditingProcValue] = useState('');
+
   const stepFade = useRef(new Animated.Value(1)).current;
   const confirmFade = useRef(new Animated.Value(0)).current;
+  // Tracks last-tap timestamps per field for double-tap detection
+  const lastTapTimes = useRef<Record<string, number>>({});
 
   // ── Load clinical records ─────────────────────────────────────────
 
@@ -144,12 +156,37 @@ export default function MedicalHistoryScreen() {
       const prefill = buildMedicalHistoryPrefill(clinicalRecords, demographics);
 
       setPrefillData(prefill);
+
+      // Build flat editable lists from the prefill (only BPH-relevant drug groups)
+      const medGroupKeys = ['alphaBlockers', 'fiveARIs', 'anticholinergics', 'beta3Agonists', 'otherBPH'] as const;
+      const medItems: EditableMedItem[] = [];
+      for (const groupKey of medGroupKeys) {
+        (prefill.medications[groupKey].value ?? []).forEach((m, i) => {
+          medItems.push({ id: `${groupKey}_${i}`, name: m.name, groupKey });
+        });
+      }
+      setEditableMeds(medItems);
+      setEditingMedId(null);
+      setEditingMedValue('');
+
+      const procItems: EditableProcItem[] = [];
+      (prefill.surgicalHistory.bphProcedures.value ?? []).forEach((p, i) => {
+        procItems.push({ id: `bph_${i}`, name: p.name, date: p.date, isBPH: true });
+      });
+      (prefill.surgicalHistory.otherProcedures.value ?? []).forEach((p, i) => {
+        procItems.push({ id: `other_${i}`, name: p.name, date: p.date, isBPH: false });
+      });
+      setEditableProcs(procItems);
+      setEditingProcId(null);
+      setEditingProcValue('');
+
       setReviewStep(0);
       setCorrectionsNeeded(new Set());
       setDemoName('');
       setDemoEthnicity('');
       setDemoRace('');
       setDemoStage('name');
+      setDemoEditingField(null);
       setPhase('reviewing');
     } catch {
       setPhase('reviewing');
@@ -213,6 +250,18 @@ export default function MedicalHistoryScreen() {
     setPickerVisible(true);
   }, []);
 
+  // Double-tap detection: call action() if two taps arrive within 300 ms
+  const handleFieldDoubleTap = useCallback((key: string, action: () => void) => {
+    const now = Date.now();
+    const last = lastTapTimes.current[key] ?? 0;
+    if (now - last < 300) {
+      lastTapTimes.current[key] = 0;
+      action();
+    } else {
+      lastTapTimes.current[key] = now;
+    }
+  }, []);
+
   // ── Save and navigate ─────────────────────────────────────────────
 
   const handleContinue = async () => {
@@ -221,23 +270,18 @@ export default function MedicalHistoryScreen() {
     const surgicalHistory: string[] = [];
     const bphTreatmentHistory: string[] = [];
 
-    if (prefillData) {
-      const medEntries = [
-        prefillData.medications.alphaBlockers,
-        prefillData.medications.fiveARIs,
-        prefillData.medications.anticholinergics,
-        prefillData.medications.beta3Agonists,
-        prefillData.medications.otherBPH,
-      ];
-      for (const entry of medEntries) {
-        if (entry.value) {
-          for (const med of entry.value) {
-            medications.push(med.name);
-            if (med.drugClass !== 'unrelated') bphTreatmentHistory.push(med.name);
-          }
-        }
-      }
+    // Use the user-edited lists (initialized from health records, may have been corrected)
+    for (const med of editableMeds) {
+      medications.push(med.name);
+      bphTreatmentHistory.push(med.name);
+    }
 
+    for (const proc of editableProcs) {
+      surgicalHistory.push(proc.name);
+      if (proc.isBPH) bphTreatmentHistory.push(proc.name);
+    }
+
+    if (prefillData) {
       const condEntries = [
         prefillData.conditions.diabetes,
         prefillData.conditions.hypertension,
@@ -247,18 +291,6 @@ export default function MedicalHistoryScreen() {
       for (const entry of condEntries) {
         if (entry.value) {
           for (const cond of entry.value) conditions.push(cond.name);
-        }
-      }
-
-      if (prefillData.surgicalHistory.bphProcedures.value) {
-        for (const proc of prefillData.surgicalHistory.bphProcedures.value) {
-          surgicalHistory.push(proc.name);
-          bphTreatmentHistory.push(proc.name);
-        }
-      }
-      if (prefillData.surgicalHistory.otherProcedures.value) {
-        for (const proc of prefillData.surgicalHistory.otherProcedures.value) {
-          surgicalHistory.push(proc.name);
         }
       }
     }
@@ -298,15 +330,17 @@ export default function MedicalHistoryScreen() {
     found,
     placeholder = 'will ask',
     showBadge = true,
+    onPress,
   }: {
     label: string;
     value: string | null | undefined;
     found: boolean;
     placeholder?: string;
     showBadge?: boolean;
+    onPress?: () => void;
   }) {
-    return (
-      <View style={[reviewStyles.dataRow, { borderBottomColor: borderColor }]}>
+    const inner = (
+      <>
         <Text style={[reviewStyles.dataLabel, { color: colors.icon }]}>{label}</Text>
         <View style={reviewStyles.dataRight}>
           {found && value ? (
@@ -324,6 +358,24 @@ export default function MedicalHistoryScreen() {
             </Text>
           )}
         </View>
+      </>
+    );
+
+    if (onPress) {
+      return (
+        <TouchableOpacity
+          style={[reviewStyles.dataRow, { borderBottomColor: borderColor }]}
+          onPress={onPress}
+          activeOpacity={0.7}
+        >
+          {inner}
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <View style={[reviewStyles.dataRow, { borderBottomColor: borderColor }]}>
+        {inner}
       </View>
     );
   }
@@ -382,24 +434,46 @@ export default function MedicalHistoryScreen() {
     );
   }
 
-  function MedGroupSection({
-    label,
-    meds,
-  }: {
-    label: string;
-    meds: ClassifiedMedication[] | null | undefined;
-  }) {
+  function MedGroupSection({ label, items }: { label: string; items: EditableMedItem[] }) {
     return (
       <View style={reviewStyles.medGroup}>
         <Text style={[reviewStyles.medGroupLabel, { color: colors.icon }]}>{label}</Text>
-        {meds && meds.length > 0 ? (
-          meds.map((med, i) => (
-            <View key={i} style={reviewStyles.medItem}>
+        {items.length > 0 ? (
+          items.map(item => (
+            <View key={item.id} style={reviewStyles.medItem}>
               <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
-              <Text style={[reviewStyles.medName, { color: colors.text }]}>{med.name}</Text>
-              <View style={reviewStyles.sourceBadge}>
-                <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
-              </View>
+              {editingMedId === item.id ? (
+                <TextInput
+                  value={editingMedValue}
+                  onChangeText={setEditingMedValue}
+                  onSubmitEditing={() => {
+                    setEditableMeds(prev => prev.map(m =>
+                      m.id === item.id ? { ...m, name: editingMedValue.trim() || m.name } : m
+                    ));
+                    setEditingMedId(null);
+                  }}
+                  returnKeyType="done"
+                  autoFocus
+                  style={[reviewStyles.medEditInput, { color: colors.text }]}
+                />
+              ) : (
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  onPress={() => handleFieldDoubleTap(`med_${item.id}`, () => {
+                    setEditingMedId(item.id);
+                    setEditingMedValue(item.name);
+                    setEditingProcId(null);
+                  })}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[reviewStyles.medName, { color: colors.text }]}>{item.name}</Text>
+                </TouchableOpacity>
+              )}
+              {editingMedId !== item.id && (
+                <View style={reviewStyles.sourceBadge}>
+                  <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
+                </View>
+              )}
             </View>
           ))
         ) : (
@@ -411,31 +485,53 @@ export default function MedicalHistoryScreen() {
     );
   }
 
-  function ProcedureSection({
-    label,
-    procedures,
-  }: {
-    label: string;
-    procedures: MappedProcedure[] | null | undefined;
-  }) {
+  function ProcedureSection({ label, items }: { label: string; items: EditableProcItem[] }) {
     return (
       <View style={reviewStyles.medGroup}>
         <Text style={[reviewStyles.medGroupLabel, { color: colors.icon }]}>{label}</Text>
-        {procedures && procedures.length > 0 ? (
-          procedures.map((proc, i) => (
-            <View key={i} style={reviewStyles.medItem}>
+        {items.length > 0 ? (
+          items.map(item => (
+            <View key={item.id} style={reviewStyles.medItem}>
               <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
-              <View style={reviewStyles.procNameRow}>
-                <Text style={[reviewStyles.medName, { color: colors.text }]}>{proc.name}</Text>
-                {proc.date && (
-                  <Text style={[reviewStyles.procDate, { color: colors.icon }]}>
-                    {formatShortDate(proc.date)}
-                  </Text>
-                )}
-              </View>
-              <View style={reviewStyles.sourceBadge}>
-                <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
-              </View>
+              {editingProcId === item.id ? (
+                <TextInput
+                  value={editingProcValue}
+                  onChangeText={setEditingProcValue}
+                  onSubmitEditing={() => {
+                    setEditableProcs(prev => prev.map(p =>
+                      p.id === item.id ? { ...p, name: editingProcValue.trim() || p.name } : p
+                    ));
+                    setEditingProcId(null);
+                  }}
+                  returnKeyType="done"
+                  autoFocus
+                  style={[reviewStyles.medEditInput, { color: colors.text }]}
+                />
+              ) : (
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  onPress={() => handleFieldDoubleTap(`proc_${item.id}`, () => {
+                    setEditingProcId(item.id);
+                    setEditingProcValue(item.name);
+                    setEditingMedId(null);
+                  })}
+                  activeOpacity={0.8}
+                >
+                  <View style={reviewStyles.procNameRow}>
+                    <Text style={[reviewStyles.medName, { color: colors.text }]}>{item.name}</Text>
+                    {item.date && (
+                      <Text style={[reviewStyles.procDate, { color: colors.icon }]}>
+                        {formatShortDate(item.date)}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              )}
+              {editingProcId !== item.id && (
+                <View style={reviewStyles.sourceBadge}>
+                  <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
+                </View>
+              )}
             </View>
           ))
         ) : (
@@ -470,13 +566,19 @@ export default function MedicalHistoryScreen() {
               found={prefillData.demographics.biologicalSex.confidence !== 'none'}
             />
 
-            {/* Full Name — inline input, then locks as static */}
-            {demoStage === 'name' ? (
+            {/* Full Name — inline input on initial entry or when re-editing */}
+            {(demoStage === 'name' || demoEditingField === 'name') ? (
               <InlineInputRow
                 label="Full Name"
                 value={demoName}
                 onChange={setDemoName}
-                onSubmit={() => setDemoStage('ethnicity')}
+                onSubmit={() => {
+                  if (demoStage === 'name') {
+                    setDemoStage('ethnicity');
+                  } else {
+                    setDemoEditingField(null);
+                  }
+                }}
               />
             ) : (
               <DataRow
@@ -484,22 +586,35 @@ export default function MedicalHistoryScreen() {
                 value={demoName || '—'}
                 found
                 showBadge={false}
+                onPress={() => handleFieldDoubleTap('name', () => setDemoEditingField('name'))}
               />
             )}
 
-            {/* Ethnicity — tap-to-select, then locks as static */}
+            {/* Ethnicity — tap-to-select, then locks as static (double-tap to re-open) */}
             {(demoStage === 'ethnicity' || demoStage === 'race' || demoStage === 'done') && (
               demoEthnicity ? (
-                <DataRow label="Ethnicity" value={demoEthnicity} found showBadge={false} />
+                <DataRow
+                  label="Ethnicity"
+                  value={demoEthnicity}
+                  found
+                  showBadge={false}
+                  onPress={() => handleFieldDoubleTap('ethnicity', () => openPicker('ethnicity'))}
+                />
               ) : (
                 <SelectDataRow label="Ethnicity" onPress={() => openPicker('ethnicity')} />
               )
             )}
 
-            {/* Race — tap-to-select, then locks as static */}
+            {/* Race — tap-to-select, then locks as static (double-tap to re-open) */}
             {(demoStage === 'race' || demoStage === 'done') && (
               demoRace ? (
-                <DataRow label="Race" value={demoRace} found showBadge={false} />
+                <DataRow
+                  label="Race"
+                  value={demoRace}
+                  found
+                  showBadge={false}
+                  onPress={() => handleFieldDoubleTap('race', () => openPicker('race'))}
+                />
               ) : (
                 <SelectDataRow label="Race" onPress={() => openPicker('race')} />
               )
@@ -508,32 +623,26 @@ export default function MedicalHistoryScreen() {
         );
 
       case 1: {
-        const meds = prefillData.medications;
+        const grouped = {
+          alphaBlockers:    editableMeds.filter(m => m.groupKey === 'alphaBlockers'),
+          fiveARIs:         editableMeds.filter(m => m.groupKey === 'fiveARIs'),
+          anticholinergics: editableMeds.filter(m => m.groupKey === 'anticholinergics'),
+          beta3Agonists:    editableMeds.filter(m => m.groupKey === 'beta3Agonists'),
+          otherBPH:         editableMeds.filter(m => m.groupKey === 'otherBPH'),
+        };
         return (
           <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
-            <MedGroupSection
-              label="ALPHA BLOCKERS"
-              meds={meds.alphaBlockers.value}
-            />
+            <MedGroupSection label="ALPHA BLOCKERS" items={grouped.alphaBlockers} />
             <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
-            <MedGroupSection
-              label="5-ALPHA REDUCTASE INHIBITORS"
-              meds={meds.fiveARIs.value}
-            />
+            <MedGroupSection label="5-ALPHA REDUCTASE INHIBITORS" items={grouped.fiveARIs} />
             <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
-            <MedGroupSection
-              label="ANTICHOLINERGICS"
-              meds={meds.anticholinergics.value}
-            />
+            <MedGroupSection label="ANTICHOLINERGICS" items={grouped.anticholinergics} />
             <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
-            <MedGroupSection
-              label="BETA-3 AGONISTS"
-              meds={meds.beta3Agonists.value}
-            />
-            {meds.otherBPH.value && meds.otherBPH.value.length > 0 && (
+            <MedGroupSection label="BETA-3 AGONISTS" items={grouped.beta3Agonists} />
+            {grouped.otherBPH.length > 0 && (
               <>
                 <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
-                <MedGroupSection label="OTHER BPH MEDICATIONS" meds={meds.otherBPH.value} />
+                <MedGroupSection label="OTHER BPH MEDICATIONS" items={grouped.otherBPH} />
               </>
             )}
           </View>
@@ -541,17 +650,16 @@ export default function MedicalHistoryScreen() {
       }
 
       case 2: {
-        const surg = prefillData.surgicalHistory;
         return (
           <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
             <ProcedureSection
               label="BPH / PROSTATE PROCEDURES"
-              procedures={surg.bphProcedures.value}
+              items={editableProcs.filter(p => p.isBPH)}
             />
             <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
             <ProcedureSection
               label="OTHER SURGERIES"
-              procedures={surg.otherProcedures.value}
+              items={editableProcs.filter(p => !p.isBPH)}
             />
           </View>
         );
@@ -892,6 +1000,13 @@ const reviewStyles = StyleSheet.create({
   selectHint: {
     fontSize: 15,
     fontWeight: '500',
+  },
+  medEditInput: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
   },
   pickerBackdrop: {
     flex: 1,
