@@ -41,6 +41,7 @@ import {
   buildMedicalHistoryPrefill,
   type MedicalHistoryPrefill,
 } from '@/lib/services/fhir';
+import { BPH_DRUGS } from '@/lib/services/fhir/codes';
 import { getMockClinicalRecords, getMockDemographics } from '@/lib/services/healthkit/mock-health-data';
 
 // ── Types ─────────────────────────────────────────────────────────────
@@ -73,7 +74,12 @@ const RACE_OPTIONS = [
 
 type DemoStage = 'name' | 'ethnicity' | 'race' | 'done';
 
-type EditableMedItem = { id: string; name: string; groupKey: string };
+type EditableMedItem = {
+  id: string;
+  name: string;        // scientific name + dosage (e.g., "tamsulosin 0.4 mg oral capsule")
+  brandName?: string;  // capitalized brand name if found (e.g., "Flomax")
+  groupKey: string;
+};
 type EditableProcItem = { id: string; name: string; date?: string; isBPH: boolean };
 
 // ── Helpers ──────────────────────────────────────────────────────────
@@ -162,7 +168,11 @@ export default function MedicalHistoryScreen() {
       const medItems: EditableMedItem[] = [];
       for (const groupKey of medGroupKeys) {
         (prefill.medications[groupKey].value ?? []).forEach((m, i) => {
-          medItems.push({ id: `${groupKey}_${i}`, name: m.name, groupKey });
+          const drugEntry = m.genericName
+            ? BPH_DRUGS.find(d => d.generic === m.genericName!.toLowerCase())
+            : undefined;
+          const brandName = drugEntry?.brands[0] ? capitalize(drugEntry.brands[0]) : undefined;
+          medItems.push({ id: `${groupKey}_${i}`, name: m.name, brandName, groupKey });
         });
       }
       setEditableMeds(medItems);
@@ -608,7 +618,14 @@ export default function MedicalHistoryScreen() {
                           })}
                           activeOpacity={0.8}
                         >
-                          <Text style={[reviewStyles.medName, { color: colors.text }]}>{item.name}</Text>
+                          {item.brandName ? (
+                            <Text style={[reviewStyles.medName, { color: colors.text }]}>
+                              {item.brandName}{' '}
+                              <Text style={reviewStyles.medNameSecondary}>({item.name})</Text>
+                            </Text>
+                          ) : (
+                            <Text style={[reviewStyles.medName, { color: colors.text }]}>{item.name}</Text>
+                          )}
                         </TouchableOpacity>
                       )}
                       {editingMedId !== item.id && (
@@ -953,6 +970,12 @@ const reviewStyles = StyleSheet.create({
   medName: {
     fontSize: 15,
     flex: 1,
+    fontWeight: '500',
+  },
+  medNameSecondary: {
+    fontSize: 13,
+    fontWeight: '400',
+    opacity: 0.6,
   },
   procNameRow: {
     flex: 1,
