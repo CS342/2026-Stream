@@ -434,57 +434,6 @@ export default function MedicalHistoryScreen() {
     );
   }
 
-  function MedGroupSection({ label, items }: { label: string; items: EditableMedItem[] }) {
-    return (
-      <View style={reviewStyles.medGroup}>
-        <Text style={[reviewStyles.medGroupLabel, { color: colors.icon }]}>{label}</Text>
-        {items.length > 0 ? (
-          items.map(item => (
-            <View key={item.id} style={reviewStyles.medItem}>
-              <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
-              {editingMedId === item.id ? (
-                <TextInput
-                  value={editingMedValue}
-                  onChangeText={setEditingMedValue}
-                  onSubmitEditing={() => {
-                    setEditableMeds(prev => prev.map(m =>
-                      m.id === item.id ? { ...m, name: editingMedValue.trim() || m.name } : m
-                    ));
-                    setEditingMedId(null);
-                  }}
-                  returnKeyType="done"
-                  autoFocus
-                  style={[reviewStyles.medEditInput, { color: colors.text }]}
-                />
-              ) : (
-                <TouchableOpacity
-                  style={{ flex: 1 }}
-                  onPress={() => handleFieldDoubleTap(`med_${item.id}`, () => {
-                    setEditingMedId(item.id);
-                    setEditingMedValue(item.name);
-                    setEditingProcId(null);
-                  })}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[reviewStyles.medName, { color: colors.text }]}>{item.name}</Text>
-                </TouchableOpacity>
-              )}
-              {editingMedId !== item.id && (
-                <View style={reviewStyles.sourceBadge}>
-                  <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
-                </View>
-              )}
-            </View>
-          ))
-        ) : (
-          <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>
-            None found in health records
-          </Text>
-        )}
-      </View>
-    );
-  }
-
   function ProcedureSection({ label, items }: { label: string; items: EditableProcItem[] }) {
     return (
       <View style={reviewStyles.medGroup}>
@@ -623,29 +572,72 @@ export default function MedicalHistoryScreen() {
         );
 
       case 1: {
-        const grouped = {
-          alphaBlockers:    editableMeds.filter(m => m.groupKey === 'alphaBlockers'),
-          fiveARIs:         editableMeds.filter(m => m.groupKey === 'fiveARIs'),
-          anticholinergics: editableMeds.filter(m => m.groupKey === 'anticholinergics'),
-          beta3Agonists:    editableMeds.filter(m => m.groupKey === 'beta3Agonists'),
-          otherBPH:         editableMeds.filter(m => m.groupKey === 'otherBPH'),
-        };
         return (
-          <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
-            <MedGroupSection label="ALPHA BLOCKERS" items={grouped.alphaBlockers} />
-            <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
-            <MedGroupSection label="5-ALPHA REDUCTASE INHIBITORS" items={grouped.fiveARIs} />
-            <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
-            <MedGroupSection label="ANTICHOLINERGICS" items={grouped.anticholinergics} />
-            <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
-            <MedGroupSection label="BETA-3 AGONISTS" items={grouped.beta3Agonists} />
-            {grouped.otherBPH.length > 0 && (
-              <>
-                <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
-                <MedGroupSection label="OTHER BPH MEDICATIONS" items={grouped.otherBPH} />
-              </>
-            )}
-          </View>
+          <>
+            {/* All health-record medications in a single flat list */}
+            <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
+              <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
+                MEDICATIONS FROM HEALTH RECORDS
+              </Text>
+              <View style={reviewStyles.medGroup}>
+                {editableMeds.length > 0 ? (
+                  editableMeds.map(item => (
+                    <View key={item.id} style={reviewStyles.medItem}>
+                      <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
+                      {editingMedId === item.id ? (
+                        <TextInput
+                          value={editingMedValue}
+                          onChangeText={setEditingMedValue}
+                          onSubmitEditing={() => {
+                            setEditableMeds(prev => prev.map(m =>
+                              m.id === item.id ? { ...m, name: editingMedValue.trim() || m.name } : m
+                            ));
+                            setEditingMedId(null);
+                          }}
+                          returnKeyType="done"
+                          autoFocus
+                          style={[reviewStyles.medEditInput, { color: colors.text }]}
+                        />
+                      ) : (
+                        <TouchableOpacity
+                          style={{ flex: 1 }}
+                          onPress={() => handleFieldDoubleTap(`med_${item.id}`, () => {
+                            setEditingMedId(item.id);
+                            setEditingMedValue(item.name);
+                            setEditingProcId(null);
+                          })}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={[reviewStyles.medName, { color: colors.text }]}>{item.name}</Text>
+                        </TouchableOpacity>
+                      )}
+                      {editingMedId !== item.id && (
+                        <View style={reviewStyles.sourceBadge}>
+                          <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                ) : (
+                  <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>
+                    None found in health records
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {/* Other medications not captured from health records */}
+            <View style={[reviewStyles.card, { backgroundColor: sectionBg, marginTop: 12 }]}>
+              <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
+                OTHER MEDICATIONS
+              </Text>
+              <View style={reviewStyles.medGroup}>
+                <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>
+                  None
+                </Text>
+              </View>
+            </View>
+          </>
         );
       }
 
