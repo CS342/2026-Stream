@@ -125,6 +125,7 @@ export default function MedicalHistoryScreen() {
   const [editableMeds, setEditableMeds] = useState<EditableMedItem[]>([]);
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [editingMedValue, setEditingMedValue] = useState('');
+  const [otherMeds, setOtherMeds] = useState<EditableMedItem[]>([]);
   const [editableProcs, setEditableProcs] = useState<EditableProcItem[]>([]);
   const [editingProcId, setEditingProcId] = useState<string | null>(null);
   const [editingProcValue, setEditingProcValue] = useState('');
@@ -649,9 +650,65 @@ export default function MedicalHistoryScreen() {
                 OTHER MEDICATIONS
               </Text>
               <View style={reviewStyles.medGroup}>
-                <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>
-                  None
-                </Text>
+                {otherMeds.length === 0 && (
+                  <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>
+                    None
+                  </Text>
+                )}
+                {otherMeds.map(item => (
+                  <View key={item.id} style={reviewStyles.medItem}>
+                    <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
+                    {editingMedId === item.id ? (
+                      <TextInput
+                        value={editingMedValue}
+                        onChangeText={setEditingMedValue}
+                        onSubmitEditing={() => {
+                          const trimmed = editingMedValue.trim();
+                          if (trimmed) {
+                            setOtherMeds(prev => prev.map(m =>
+                              m.id === item.id ? { ...m, name: trimmed } : m
+                            ));
+                          } else {
+                            setOtherMeds(prev => prev.filter(m => m.id !== item.id));
+                          }
+                          setEditingMedId(null);
+                        }}
+                        returnKeyType="done"
+                        autoFocus
+                        placeholder="Medication name"
+                        placeholderTextColor={colors.icon}
+                        style={[reviewStyles.medEditInput, { color: colors.text }]}
+                      />
+                    ) : (
+                      <TouchableOpacity
+                        style={{ flex: 1 }}
+                        onPress={() => handleFieldDoubleTap(`othermed_${item.id}`, () => {
+                          setEditingMedId(item.id);
+                          setEditingMedValue(item.name);
+                          setEditingProcId(null);
+                        })}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[reviewStyles.medName, { color: colors.text }]}>{item.name}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={reviewStyles.addMedButton}
+                  onPress={() => {
+                    const newId = `other_custom_${Date.now()}`;
+                    setOtherMeds(prev => [...prev, { id: newId, name: '', groupKey: 'other' }]);
+                    setEditingMedId(newId);
+                    setEditingMedValue('');
+                    setEditingProcId(null);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[reviewStyles.addMedButtonText, { color: StanfordColors.cardinal }]}>
+                    + Add Medication
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           </>
@@ -988,6 +1045,14 @@ const reviewStyles = StyleSheet.create({
     fontSize: 14,
     fontStyle: 'italic',
     paddingVertical: 2,
+  },
+  addMedButton: {
+    marginTop: 10,
+    paddingVertical: 8,
+  },
+  addMedButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
   actionContainer: {
     paddingHorizontal: Spacing.screenHorizontal,
