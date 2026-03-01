@@ -5,7 +5,7 @@
  * Users must scroll through and agree before proceeding.
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -24,37 +24,42 @@ import { OnboardingService } from '@/lib/services/onboarding-service';
 import { ConsentService } from '@/lib/services/consent-service';
 import {
   CONSENT_DOCUMENT,
-  getRequiredSections,
   getConsentSummary,
 } from '@/lib/consent/consent-document';
 import {
   OnboardingProgressBar,
-  ConsentSection,
   ConsentAgreement,
   ContinueButton,
   DevToolBar,
 } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
+function renderConsentContent(text: string) {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <Text key={index} style={{ fontWeight: '700' }}>
+          {part.slice(2, -2)}
+        </Text>
+      );
+    }
+    return part;
+  });
+}
+
 export default function ConsentScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
-  const [readSections, setReadSections] = useState<Set<string>>(new Set());
   const [agreed, setAgreed] = useState(false);
   const [signature, setSignature] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
 
-  const requiredSections = getRequiredSections();
-  const allRequiredRead = requiredSections.every((s) => readSections.has(s.id));
-  const canContinue = allRequiredRead && agreed && signature.trim().length > 0;
-
-  const handleSectionRead = useCallback((sectionId: string) => {
-    setReadSections((prev) => new Set([...prev, sectionId]));
-  }, []);
+  const canContinue = agreed && signature.trim().length > 0;
 
   const handleContinue = async () => {
     if (!canContinue) return;
@@ -113,49 +118,22 @@ export default function ConsentScreen() {
         showsVerticalScrollIndicator={true}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Introduction */}
-        <View
-          style={[
-            styles.introBox,
-            { backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : 'rgba(140, 21, 21, 0.05)' },
-          ]}
-        >
-          <Text style={[styles.introText, { color: colors.text }]}>
-            Please read each section carefully. Sections marked with a red dot are required.
-            Tap a section to expand it.
-          </Text>
-        </View>
-
-        {/* Consent Sections */}
+        {/* Flat consent document */}
         {CONSENT_DOCUMENT.sections.map((section, index) => (
-          <ConsentSection
-            key={section.id}
-            title={section.title}
-            content={section.content}
-            required={section.required}
-            isRead={readSections.has(section.id)}
-            onRead={() => handleSectionRead(section.id)}
-            defaultExpanded={index === 0}
-          />
+          <View key={section.id}>
+            {index > 0 && (
+              <View style={[styles.sectionDivider, { backgroundColor: colors.border }]} />
+            )}
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              {section.title}
+            </Text>
+            <Text style={[styles.sectionContent, { color: colors.text }]}>
+              {renderConsentContent(section.content)}
+            </Text>
+          </View>
         ))}
 
-        {/* Progress indicator */}
-        <View style={styles.progressContainer}>
-          <Text style={[styles.progressText, { color: colors.icon }]}>
-            {readSections.size} of {requiredSections.length} required sections read
-          </Text>
-          <View style={[styles.progressBar, { backgroundColor: colors.border }]}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  backgroundColor: StanfordColors.cardinal,
-                  width: `${(readSections.size / requiredSections.length) * 100}%`,
-                },
-              ]}
-            />
-          </View>
-        </View>
+        <View style={[styles.sectionDivider, { backgroundColor: colors.border }]} />
 
         {/* Agreement checkbox */}
         <ConsentAgreement
@@ -207,9 +185,9 @@ export default function ConsentScreen() {
       </KeyboardAvoidingView>
 
       <View style={[styles.footer, { backgroundColor: colors.background }]}>
-        {!allRequiredRead && (
+        {!canContinue && (
           <Text style={[styles.footerHint, { color: colors.icon }]}>
-            Please read all required sections before continuing
+            Please agree and sign to continue
           </Text>
         )}
         <ContinueButton
@@ -262,30 +240,18 @@ const styles = StyleSheet.create({
     padding: Spacing.screenHorizontal,
     paddingBottom: Spacing.xl,
   },
-  introBox: {
-    borderRadius: 12,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: Spacing.sm,
   },
-  introText: {
+  sectionContent: {
     fontSize: 15,
-    lineHeight: 22,
+    lineHeight: 23,
   },
-  progressContainer: {
-    marginVertical: Spacing.md,
-  },
-  progressText: {
-    fontSize: 13,
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: Spacing.lg,
   },
   signatureContainer: {
     borderRadius: 12,
