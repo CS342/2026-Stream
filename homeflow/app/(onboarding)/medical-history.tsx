@@ -1,15 +1,20 @@
 /**
- * Medical History Chat Screen
+ * Medical History Screen
  *
- * Collects medical history through natural conversation with AI assistant.
- * This screen appears after consent and permissions (Apple Health / Throne).
+ * Displays health records pulled from Apple Health and asks the patient
+ * to confirm their information section by section before a focused chatbot
+ * collects any remaining details not available from health records.
  *
  * Flow:
- *   1. Loading phase: Fetch clinical records + HealthKit demographics in parallel
- *   2. Build prefill data from health records (FHIR normalization)
- *   3. If all medical data is prefilled → show summary, skip chatbot
- *   4. Otherwise → launch chatbot with modified prompt that skips known fields
- *   5. If no records available → fall back to full chatbot (original behavior)
+ *   1. Loading: fetch clinical records + HealthKit demographics in parallel
+ *      (falls back to mock data in dev mode if no records are connected)
+ *   2. Reviewing: 3-step confirmation UI
+ *      Step 0 — Demographics (age, sex)
+ *      Step 1 — Current Medications (grouped by drug class)
+ *      Step 2 — Surgical History (BPH procedures + other surgeries)
+ *   3. Collecting: focused chatbot for fields not in health records
+ *      (name, ethnicity, race, upcoming surgery, clinical measurements)
+ *   4. Complete: save data and navigate to baseline survey
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
@@ -21,6 +26,7 @@ import {
   Animated,
   Keyboard,
   TouchableWithoutFeedback,
+  TouchableOpacity,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
@@ -37,15 +43,15 @@ import { getAllClinicalRecords } from '@/lib/services/healthkit';
 import { getDemographics } from '@/lib/services/healthkit/HealthKitClient';
 import {
   buildMedicalHistoryPrefill,
-  isFullyPrefilled,
-  getKnownFieldsSummary,
   buildModifiedSystemPrompt,
   type MedicalHistoryPrefill,
+  type ClassifiedMedication,
+  type MappedProcedure,
 } from '@/lib/services/fhir';
+import { getMockClinicalRecords, getMockDemographics } from '@/lib/services/healthkit/mock-health-data';
 
-/**
- * Fallback system prompt used when no clinical records are available.
- */
+// ── Fallback system prompt (used when health records are unavailable) ─
+
 const FALLBACK_SYSTEM_PROMPT = `You are a friendly research assistant collecting medical history for the HomeFlow BPH study. The participant has already been confirmed eligible and has given informed consent. Now you need to collect their medical history.
 
 ## Study Information
@@ -87,119 +93,149 @@ Go through each medication class:
 - General surgical history: Any other past surgeries (type and approximate year)
 
 #### 4. Lab Values (ask if they know these)
-- PSA (Prostate Specific Antigen): Most recent value and when it was done. Explain: "This is a blood test often done for prostate screening."
-- Urinalysis: Any recent urine test results, especially if anything abnormal was found
+- PSA (Prostate Specific Antigen): Most recent value and when it was done.
+- Urinalysis: Any recent urine test results
 
-#### 5. Key Medical Conditions (CRITICAL - must ask about these specifically)
-- **Diabetes**: Ask directly! If yes, ask about HbA1c level (explain: "This is a blood sugar control number, usually between 5-10%")
-- **Hypertension**: High blood pressure - are they diagnosed? Is it controlled with medication?
+#### 5. Key Medical Conditions (CRITICAL)
+- Diabetes: Ask directly! If yes, ask about HbA1c level
+- Hypertension: High blood pressure — are they diagnosed?
 - Other significant conditions
 
 #### 6. Clinical Measurements (if they've had these tests)
-- PVR (Post-Void Residual) or bladder scan: "Have you had a bladder scan after urinating? If so, what was the residual volume in mL?"
-- Clinic uroflow: "Have you done a urine flow test at your doctor's office? If so, what was your Qmax (maximum flow rate)?"
-- Mobility status: How active are they? Any limitations?
+- PVR (Post-Void Residual): "Have you had a bladder scan after urinating?"
+- Clinic uroflow: "Have you done a urine flow test at your doctor's office?"
+- Mobility status
 
 #### 7. Upcoming Surgery
 - Date of scheduled BPH surgery (if known)
-- Type of surgery planned (TURP, HoLEP, UroLift, Rezum, etc.)
+- Type of surgery planned
 
 ## Conversation Guidelines
 - Be warm, conversational, and empathetic
 - Ask 2-3 related items at a time, don't overwhelm
-- Group questions logically (all medications together, then conditions, etc.)
-- Acknowledge symptoms supportively when mentioned
 - If they don't know a value (like PSA or HbA1c), that's OK - just note "unknown" and continue
 - NEVER give medical advice or interpret their values
 
-## Important Response Markers (include these exact phrases)
+## Important Response Markers
 When ALL medical history sections are complete: [HISTORY_COMPLETE]
-
-## Conversation Flow
-1. Start with a brief introduction: "Now let's collect some medical history. We'll automatically get things like your age and weight from Apple Health, but I need to ask you about medications, conditions, and a few other things."
-2. Work through sections in order: Demographics → Medications → Surgeries → Labs → Conditions → Clinical data → Planned surgery
-3. Before finishing, summarize: "Let me confirm what I have..." then list key points
-4. End with: "I have everything I need. [HISTORY_COMPLETE] You can tap Continue to proceed."
 
 ## Start the Conversation
 "Thanks for completing the consent process! Now I need to collect some medical history. We'll pull basic info like your age and weight from Apple Health, so I just need to ask about a few other things.
 
 Let's start with some basic demographics - could you tell me your full name?"`;
 
-type MedicalHistoryPhase = 'loading' | 'collecting' | 'all_prefilled' | 'complete';
+// ── Types ─────────────────────────────────────────────────────────────
+
+type MedicalHistoryPhase = 'loading' | 'reviewing' | 'collecting' | 'complete';
+
+const STEP_TITLES = ['Demographics', 'Current Medications', 'Surgical History'] as const;
+
+const STEP_DESCRIPTIONS = [
+  'Your basic information from Apple Health.',
+  'Medications found in your health records.',
+  'Past procedures found in your health records.',
+] as const;
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+function formatShortDate(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+function capitalize(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function buildPromptWithCorrections(
+  prefill: MedicalHistoryPrefill,
+  corrections: Set<number>,
+): string {
+  let prompt = buildModifiedSystemPrompt(prefill);
+
+  if (corrections.size === 0) return prompt;
+
+  const notes: string[] = [];
+  if (corrections.has(0)) notes.push('demographic information');
+  if (corrections.has(1)) notes.push('current medications (patient indicated something may be missing or incorrect)');
+  if (corrections.has(2)) notes.push('surgical history (patient indicated something may be missing or incorrect)');
+
+  prompt += `\n\n## Patient-Flagged Corrections\nThe patient indicated possible gaps in: ${notes.join(', ')}. Please verify these sections carefully.`;
+  return prompt;
+}
+
+// ── Screen ────────────────────────────────────────────────────────────
 
 export default function MedicalHistoryScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const isDark = colorScheme === 'dark';
 
   const [phase, setPhase] = useState<MedicalHistoryPhase>('loading');
+  const [reviewStep, setReviewStep] = useState(0);
+  const [correctionsNeeded, setCorrectionsNeeded] = useState<Set<number>>(new Set());
   const [canContinue, setCanContinue] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState(FALLBACK_SYSTEM_PROMPT);
   const [prefillData, setPrefillData] = useState<MedicalHistoryPrefill | null>(null);
-  const [knownSummary, setKnownSummary] = useState<string[]>([]);
 
-  // Animation for continue button
+  const stepFade = useRef(new Animated.Value(1)).current;
   const buttonOpacity = useRef(new Animated.Value(0)).current;
 
-  // Get API key from environment
   const apiKey = Constants.expoConfig?.extra?.openaiApiKey || process.env.EXPO_PUBLIC_OPENAI_API_KEY || '';
+  const provider: ChatProvider = useMemo(() => ({
+    type: 'openai',
+    apiKey,
+    model: 'gpt-4o-mini',
+  }), [apiKey]);
 
-  // Chat provider config
-  const provider: ChatProvider = useMemo(
-    () => ({
-      type: 'openai',
-      apiKey,
-      model: 'gpt-4o-mini',
-    }),
-    [apiKey]
-  );
+  // ── Load clinical records ─────────────────────────────────────────
 
-  // ── Load clinical records + demographics on mount ─────────────────
-  useEffect(() => {
-    let cancelled = false;
+  const loadPrefillData = useCallback(async (forceMock = false) => {
+    setPhase('loading');
 
-    async function loadPrefillData() {
-      try {
-        // Fetch clinical records and demographics in parallel
-        const [clinicalRecords, demographics] = await Promise.all([
+    try {
+      let clinicalRecords = null;
+      let demographics = { age: null, dateOfBirth: null, biologicalSex: null };
+
+      if (forceMock) {
+        clinicalRecords = getMockClinicalRecords();
+        demographics = getMockDemographics();
+      } else {
+        [clinicalRecords, demographics] = await Promise.all([
           getAllClinicalRecords().catch(() => null),
           getDemographics().catch(() => ({ age: null, dateOfBirth: null, biologicalSex: null })),
         ]);
 
-        if (cancelled) return;
-
-        // Build prefill from whatever data we got
-        const prefill = buildMedicalHistoryPrefill(clinicalRecords, demographics);
-        const known = getKnownFieldsSummary(prefill);
-
-        setPrefillData(prefill);
-        setKnownSummary(known);
-
-        if (isFullyPrefilled(prefill)) {
-          // All medical data sections are covered
-          setPhase('all_prefilled');
-          setCanContinue(true);
-        } else if (known.length > 0) {
-          // Some data found — use modified prompt
-          const modifiedPrompt = buildModifiedSystemPrompt(prefill);
-          setSystemPrompt(modifiedPrompt);
-          setPhase('collecting');
-        } else {
-          // No records — fall back to full chatbot
-          setPhase('collecting');
-        }
-      } catch {
-        // On any error, fall back to full chatbot
-        if (!cancelled) {
-          setPhase('collecting');
+        // In dev mode, use mock data when no real records are available
+        if (__DEV__ && !clinicalRecords?.medications?.length && !clinicalRecords?.conditions?.length) {
+          clinicalRecords = getMockClinicalRecords();
+          demographics = getMockDemographics();
         }
       }
-    }
 
-    loadPrefillData();
-    return () => { cancelled = true; };
+      const prefill = buildMedicalHistoryPrefill(clinicalRecords, demographics);
+      const modifiedPrompt = buildModifiedSystemPrompt(prefill);
+
+      setPrefillData(prefill);
+      setSystemPrompt(modifiedPrompt);
+      setReviewStep(0);
+      setCorrectionsNeeded(new Set());
+      setPhase('reviewing');
+    } catch {
+      setPhase('reviewing');
+    }
   }, []);
+
+  useEffect(() => {
+    loadPrefillData();
+  }, [loadPrefillData]);
 
   useEffect(() => {
     if (canContinue) {
@@ -212,25 +248,61 @@ export default function MedicalHistoryScreen() {
     }
   }, [canContinue, buttonOpacity]);
 
-  // Watch for completion marker in chat messages
-  const checkForMarkers = useCallback((message: string) => {
-    const lowerMessage = message.toLowerCase();
+  // ── Review step navigation ────────────────────────────────────────
 
-    if (message.includes('[HISTORY_COMPLETE]') || (lowerMessage.includes("all set") && lowerMessage.includes("continue"))) {
+  const handleConfirmStep = useCallback((withCorrection = false) => {
+    const updatedCorrections = withCorrection
+      ? new Set([...correctionsNeeded, reviewStep])
+      : correctionsNeeded;
+
+    Animated.timing(stepFade, {
+      toValue: 0,
+      duration: 120,
+      useNativeDriver: true,
+    }).start(() => {
+      if (withCorrection) setCorrectionsNeeded(updatedCorrections);
+
+      if (reviewStep < 2) {
+        setReviewStep(prev => prev + 1);
+      } else {
+        // All sections reviewed — build final prompt and launch chatbot
+        if (prefillData) {
+          const finalPrompt = buildPromptWithCorrections(prefillData, updatedCorrections);
+          setSystemPrompt(finalPrompt);
+        }
+        setPhase('collecting');
+        setCanContinue(false);
+      }
+
+      Animated.timing(stepFade, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
+    });
+  }, [correctionsNeeded, reviewStep, stepFade, prefillData]);
+
+  // ── Chat markers ──────────────────────────────────────────────────
+
+  const checkForMarkers = useCallback((message: string) => {
+    if (
+      message.includes('[HISTORY_COMPLETE]') ||
+      (message.toLowerCase().includes('all set') && message.toLowerCase().includes('continue'))
+    ) {
       setPhase('complete');
       setCanContinue(true);
     }
   }, []);
 
+  // ── Save and navigate ─────────────────────────────────────────────
+
   const handleContinue = async () => {
-    // Build medication/condition lists from prefill data if available
     const medications: string[] = [];
     const conditions: string[] = [];
     const surgicalHistory: string[] = [];
     const bphTreatmentHistory: string[] = [];
 
     if (prefillData) {
-      // Collect medication names
       const medEntries = [
         prefillData.medications.alphaBlockers,
         prefillData.medications.fiveARIs,
@@ -242,14 +314,11 @@ export default function MedicalHistoryScreen() {
         if (entry.value) {
           for (const med of entry.value) {
             medications.push(med.name);
-            if (med.drugClass !== 'unrelated') {
-              bphTreatmentHistory.push(med.name);
-            }
+            if (med.drugClass !== 'unrelated') bphTreatmentHistory.push(med.name);
           }
         }
       }
 
-      // Collect conditions
       const condEntries = [
         prefillData.conditions.diabetes,
         prefillData.conditions.hypertension,
@@ -258,13 +327,10 @@ export default function MedicalHistoryScreen() {
       ];
       for (const entry of condEntries) {
         if (entry.value) {
-          for (const cond of entry.value) {
-            conditions.push(cond.name);
-          }
+          for (const cond of entry.value) conditions.push(cond.name);
         }
       }
 
-      // Collect procedures
       if (prefillData.surgicalHistory.bphProcedures.value) {
         for (const proc of prefillData.surgicalHistory.bphProcedures.value) {
           surgicalHistory.push(proc.name);
@@ -285,9 +351,9 @@ export default function MedicalHistoryScreen() {
         allergies: [],
         surgicalHistory,
         bphTreatmentHistory,
-        rawTranscript: phase === 'all_prefilled'
-          ? 'prefilled from health records'
-          : 'collected via chatbot + health records',
+        rawTranscript: phase === 'complete'
+          ? 'reviewed from health records + chatbot'
+          : 'reviewed from health records',
       },
     });
 
@@ -295,21 +361,206 @@ export default function MedicalHistoryScreen() {
     router.push('/(onboarding)/baseline-survey' as Href);
   };
 
-  const getPhaseText = () => {
-    switch (phase) {
-      case 'loading':
-        return 'Checking your health records...';
-      case 'collecting':
-        return 'Collecting medical history...';
-      case 'all_prefilled':
-      case 'complete':
-        return 'Ready to continue!';
+  // ── Shared style values ───────────────────────────────────────────
+
+  const cardBg = isDark ? '#1E2022' : '#F5F5F7';
+  const sectionBg = isDark ? '#2A2D2F' : '#FFFFFF';
+  const borderColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.06)';
+
+  // ── Sub-render helpers ────────────────────────────────────────────
+
+  function DataRow({
+    label,
+    value,
+    found,
+    placeholder = 'will ask',
+  }: {
+    label: string;
+    value: string | null | undefined;
+    found: boolean;
+    placeholder?: string;
+  }) {
+    return (
+      <View style={[reviewStyles.dataRow, { borderBottomColor: borderColor }]}>
+        <Text style={[reviewStyles.dataLabel, { color: colors.icon }]}>{label}</Text>
+        <View style={reviewStyles.dataRight}>
+          {found && value ? (
+            <>
+              <Text style={[reviewStyles.dataValue, { color: colors.text }]}>{value}</Text>
+              <View style={reviewStyles.sourceBadge}>
+                <Text style={reviewStyles.sourceBadgeText}>Apple Health</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={[reviewStyles.willAskText, { color: colors.icon }]}>
+              {placeholder}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  function MedGroupSection({
+    label,
+    meds,
+  }: {
+    label: string;
+    meds: ClassifiedMedication[] | null | undefined;
+  }) {
+    return (
+      <View style={reviewStyles.medGroup}>
+        <Text style={[reviewStyles.medGroupLabel, { color: colors.icon }]}>{label}</Text>
+        {meds && meds.length > 0 ? (
+          meds.map((med, i) => (
+            <View key={i} style={reviewStyles.medItem}>
+              <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
+              <Text style={[reviewStyles.medName, { color: colors.text }]}>{med.name}</Text>
+              <View style={reviewStyles.sourceBadge}>
+                <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
+              </View>
+            </View>
+          ))
+        ) : (
+          <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>
+            None found in health records
+          </Text>
+        )}
+      </View>
+    );
+  }
+
+  function ProcedureSection({
+    label,
+    procedures,
+  }: {
+    label: string;
+    procedures: MappedProcedure[] | null | undefined;
+  }) {
+    return (
+      <View style={reviewStyles.medGroup}>
+        <Text style={[reviewStyles.medGroupLabel, { color: colors.icon }]}>{label}</Text>
+        {procedures && procedures.length > 0 ? (
+          procedures.map((proc, i) => (
+            <View key={i} style={reviewStyles.medItem}>
+              <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
+              <View style={reviewStyles.procNameRow}>
+                <Text style={[reviewStyles.medName, { color: colors.text }]}>{proc.name}</Text>
+                {proc.date && (
+                  <Text style={[reviewStyles.procDate, { color: colors.icon }]}>
+                    {formatShortDate(proc.date)}
+                  </Text>
+                )}
+              </View>
+              <View style={reviewStyles.sourceBadge}>
+                <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
+              </View>
+            </View>
+          ))
+        ) : (
+          <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>
+            None found in health records
+          </Text>
+        )}
+      </View>
+    );
+  }
+
+  function renderStepContent() {
+    if (!prefillData) return null;
+
+    switch (reviewStep) {
+      case 0:
+        return (
+          <>
+            <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
+              <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
+                FROM APPLE HEALTH
+              </Text>
+              <DataRow
+                label="Age"
+                value={prefillData.demographics.age.value != null
+                  ? `${prefillData.demographics.age.value} years`
+                  : null}
+                found={prefillData.demographics.age.confidence !== 'none'}
+              />
+              <DataRow
+                label="Biological Sex"
+                value={prefillData.demographics.biologicalSex.value
+                  ? capitalize(prefillData.demographics.biologicalSex.value)
+                  : null}
+                found={prefillData.demographics.biologicalSex.confidence !== 'none'}
+              />
+            </View>
+
+            <View style={[reviewStyles.card, { backgroundColor: sectionBg, marginTop: 12 }]}>
+              <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
+                NOT IN HEALTH RECORDS — WILL ASK
+              </Text>
+              <DataRow label="Full Name" value={null} found={false} />
+              <DataRow label="Ethnicity" value={null} found={false} />
+              <DataRow label="Race" value={null} found={false} />
+            </View>
+          </>
+        );
+
+      case 1: {
+        const meds = prefillData.medications;
+        return (
+          <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
+            <MedGroupSection
+              label="ALPHA BLOCKERS"
+              meds={meds.alphaBlockers.value}
+            />
+            <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
+            <MedGroupSection
+              label="5-ALPHA REDUCTASE INHIBITORS"
+              meds={meds.fiveARIs.value}
+            />
+            <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
+            <MedGroupSection
+              label="ANTICHOLINERGICS"
+              meds={meds.anticholinergics.value}
+            />
+            <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
+            <MedGroupSection
+              label="BETA-3 AGONISTS"
+              meds={meds.beta3Agonists.value}
+            />
+            {meds.otherBPH.value && meds.otherBPH.value.length > 0 && (
+              <>
+                <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
+                <MedGroupSection label="OTHER BPH MEDICATIONS" meds={meds.otherBPH.value} />
+              </>
+            )}
+          </View>
+        );
+      }
+
+      case 2: {
+        const surg = prefillData.surgicalHistory;
+        return (
+          <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
+            <ProcedureSection
+              label="BPH / PROSTATE PROCEDURES"
+              procedures={surg.bphProcedures.value}
+            />
+            <View style={[reviewStyles.divider, { backgroundColor: borderColor }]} />
+            <ProcedureSection
+              label="OTHER SURGERIES"
+              procedures={surg.otherProcedures.value}
+            />
+          </View>
+        );
+      }
+
       default:
-        return '';
+        return null;
     }
-  };
+  }
 
   // ── Loading phase ─────────────────────────────────────────────────
+
   if (phase === 'loading') {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -322,7 +573,7 @@ export default function MedicalHistoryScreen() {
             Checking your health records...
           </Text>
           <Text style={[styles.loadingSubtext, { color: colors.icon }]}>
-            Looking for medications, conditions, and lab results
+            Looking for medications, conditions, and procedures
           </Text>
         </View>
         <DevToolBar currentStep={OnboardingStep.MEDICAL_HISTORY} onContinue={handleContinue} />
@@ -330,73 +581,94 @@ export default function MedicalHistoryScreen() {
     );
   }
 
-  // ── All prefilled phase ───────────────────────────────────────────
-  if (phase === 'all_prefilled') {
+  // ── Reviewing phase ───────────────────────────────────────────────
+
+  if (phase === 'reviewing') {
+    const isLastStep = reviewStep === 2;
+
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.header}>
           <OnboardingProgressBar currentStep={OnboardingStep.MEDICAL_HISTORY} />
         </View>
-        <ScrollView contentContainerStyle={styles.prefilledContainer}>
-          <IconSymbol name="checkmark.circle.fill" size={56} color="#34C759" />
-          <Text style={[styles.prefilledTitle, { color: colors.text }]}>
-            Health Records Found
-          </Text>
-          <Text style={[styles.prefilledSubtitle, { color: colors.icon }]}>
-            We found the following from your Apple Health records:
-          </Text>
 
-          <View style={[styles.summaryCard, { backgroundColor: colorScheme === 'dark' ? '#1E2022' : '#F5F5F5' }]}>
-            {knownSummary.map((item, index) => (
-              <View key={index} style={styles.summaryRow}>
-                <IconSymbol name="checkmark" size={16} color="#34C759" />
-                <Text style={[styles.summaryText, { color: colors.text }]}>{item}</Text>
-              </View>
+        {/* Step indicator */}
+        <View style={reviewStyles.stepHeader}>
+          <View style={reviewStyles.stepDots}>
+            {[0, 1, 2].map(i => (
+              <View
+                key={i}
+                style={[
+                  reviewStyles.stepDot,
+                  i < reviewStep
+                    ? { backgroundColor: StanfordColors.cardinal, opacity: 0.5 }
+                    : i === reviewStep
+                    ? { backgroundColor: StanfordColors.cardinal }
+                    : { backgroundColor: colors.border },
+                ]}
+              />
             ))}
           </View>
-
-          <Text style={[styles.prefilledNote, { color: colors.icon }]}>
-            {"We still need a few details that aren't in your health records. The chatbot will ask only about what's missing."}
+          <Text style={[reviewStyles.stepCounter, { color: colors.icon }]}>
+            Step {reviewStep + 1} of 3
           </Text>
+        </View>
 
+        {/* Title */}
+        <View style={reviewStyles.titleRow}>
+          <Text style={[reviewStyles.stepTitle, { color: colors.text }]}>
+            {STEP_TITLES[reviewStep]}
+          </Text>
+          <Text style={[reviewStyles.stepDesc, { color: colors.icon }]}>
+            {STEP_DESCRIPTIONS[reviewStep]}
+          </Text>
+        </View>
+
+        {/* Content */}
+        <Animated.View style={[{ flex: 1 }, { opacity: stepFade }]}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={reviewStyles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {renderStepContent()}
+          </ScrollView>
+        </Animated.View>
+
+        {/* Action buttons */}
+        <View style={[reviewStyles.actionContainer, { backgroundColor: colors.background, borderTopColor: borderColor }]}>
           <ContinueButton
-            title="Continue to Chatbot"
-            onPress={() => {
-              setPhase('collecting');
-              setCanContinue(false);
-            }}
-            style={{ marginTop: Spacing.md }}
+            title={isLastStep ? 'Confirm All & Continue →' : 'Looks Correct →'}
+            onPress={() => handleConfirmStep(false)}
           />
-        </ScrollView>
-        <DevToolBar currentStep={OnboardingStep.MEDICAL_HISTORY} onContinue={handleContinue} />
-      </SafeAreaView>
-    );
-  }
-
-  // ── No API key fallback ───────────────────────────────────────────
-  if (!apiKey) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.header}>
-          <OnboardingProgressBar currentStep={OnboardingStep.MEDICAL_HISTORY} />
-        </View>
-        <View style={styles.noApiKey}>
-          <IconSymbol name={'info.circle.fill' as any} size={48} color={colors.icon} />
-          <Text style={[styles.noApiKeyTitle, { color: colors.text }]}>
-            Medical History Chat Not Available
-          </Text>
-          <Text style={[styles.noApiKeyText, { color: colors.icon }]}>
-            OpenAI API key not configured. For demo purposes, tap Continue to proceed.
-          </Text>
-          <ContinueButton title="Continue (Demo)" onPress={handleContinue} style={{ marginTop: Spacing.lg }} />
+          <TouchableOpacity
+            style={reviewStyles.correctionButton}
+            onPress={() => handleConfirmStep(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={[reviewStyles.correctionText, { color: colors.icon }]}>
+              Something's missing or incorrect
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <DevToolBar currentStep={OnboardingStep.MEDICAL_HISTORY} onContinue={handleContinue} />
+        <DevToolBar
+          currentStep={OnboardingStep.MEDICAL_HISTORY}
+          onContinue={handleContinue}
+          extraActions={__DEV__ ? [
+            {
+              label: 'Use Mock',
+              color: '#5856D6',
+              onPress: () => loadPrefillData(true),
+            },
+          ] : undefined}
+        />
       </SafeAreaView>
     );
   }
 
   // ── Chatbot phase (collecting / complete) ─────────────────────────
+
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
@@ -409,7 +681,9 @@ export default function MedicalHistoryScreen() {
                 { backgroundColor: phase === 'complete' ? '#34C759' : StanfordColors.cardinal },
               ]}
             />
-            <Text style={[styles.phaseText, { color: colors.icon }]}>{getPhaseText()}</Text>
+            <Text style={[styles.phaseText, { color: colors.icon }]}>
+              {phase === 'complete' ? 'Ready to continue!' : 'A few more questions...'}
+            </Text>
           </View>
         </View>
 
@@ -445,11 +719,176 @@ export default function MedicalHistoryScreen() {
           </Animated.View>
         )}
 
-        <DevToolBar currentStep={OnboardingStep.MEDICAL_HISTORY} onContinue={handleContinue} />
+        <DevToolBar
+          currentStep={OnboardingStep.MEDICAL_HISTORY}
+          onContinue={handleContinue}
+          extraActions={__DEV__ ? [
+            {
+              label: 'Use Mock',
+              color: '#5856D6',
+              onPress: () => loadPrefillData(true),
+            },
+          ] : undefined}
+        />
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );
 }
+
+// ── Review-specific styles ────────────────────────────────────────────
+
+const reviewStyles = StyleSheet.create({
+  stepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  stepDots: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  stepCounter: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  titleRow: {
+    paddingHorizontal: Spacing.screenHorizontal,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    gap: 4,
+  },
+  stepTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  stepDesc: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  scrollContent: {
+    paddingHorizontal: Spacing.screenHorizontal,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.lg,
+    gap: 0,
+  },
+  card: {
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  cardSectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
+  dataRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 11,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    minHeight: 46,
+  },
+  dataLabel: {
+    fontSize: 15,
+    fontWeight: '400',
+    flex: 1,
+  },
+  dataRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
+  },
+  dataValue: {
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  willAskText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  sourceBadge: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 6,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  sourceBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2E7D32',
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: Spacing.md,
+  },
+  medGroup: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: 6,
+  },
+  medGroupLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    marginBottom: 2,
+  },
+  medItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 2,
+  },
+  medBullet: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  medName: {
+    fontSize: 15,
+    flex: 1,
+  },
+  procNameRow: {
+    flex: 1,
+    gap: 2,
+  },
+  procDate: {
+    fontSize: 12,
+  },
+  noneFound: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    paddingVertical: 2,
+  },
+  actionContainer: {
+    paddingHorizontal: Spacing.screenHorizontal,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.xs,
+  },
+  correctionButton: {
+    alignItems: 'center',
+    paddingVertical: Spacing.sm,
+  },
+  correctionText: {
+    fontSize: 14,
+  },
+});
+
+// ── Shared styles ─────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
@@ -457,6 +896,9 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: Spacing.sm,
+  },
+  scrollView: {
+    flex: 1,
   },
   phaseIndicator: {
     flexDirection: 'row',
@@ -492,23 +934,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
-  noApiKey: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.screenHorizontal,
-  },
-  noApiKeyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginTop: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  noApiKeyText: {
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -523,42 +948,5 @@ const styles = StyleSheet.create({
   loadingSubtext: {
     fontSize: 14,
     textAlign: 'center',
-  },
-  prefilledContainer: {
-    flexGrow: 1,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.screenHorizontal,
-    paddingTop: Spacing.xl,
-    gap: Spacing.md,
-  },
-  prefilledTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-  },
-  prefilledSubtitle: {
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  summaryCard: {
-    width: '100%',
-    borderRadius: 12,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  summaryText: {
-    fontSize: 15,
-    flex: 1,
-  },
-  prefilledNote: {
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 20,
-    paddingHorizontal: Spacing.md,
   },
 });
