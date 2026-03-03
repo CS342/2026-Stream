@@ -48,12 +48,15 @@ import { getMockClinicalRecords, getMockDemographics } from '@/lib/services/heal
 
 type MedicalHistoryPhase = 'loading' | 'reviewing' | 'complete';
 
-const STEP_TITLES = ['Demographics', 'Current Medications', 'Surgical History'] as const;
+const STEP_TITLES = ['Demographics', 'Current Medications', 'Surgical History', 'Lab Results', 'Conditions', 'Clinical Measurements'] as const;
 
 const STEP_DESCRIPTIONS = [
   'Your basic information from Apple Health.',
   'Medications found in your health records.',
   'Past procedures found in your health records.',
+  'Recent lab results found in your health records.',
+  'Medical conditions found in your health records.',
+  'Bladder and urinary function measurements.',
 ] as const;
 
 const ETHNICITY_OPTIONS = [
@@ -289,7 +292,7 @@ export default function MedicalHistoryScreen() {
     }).start(() => {
       if (withCorrection) setCorrectionsNeeded(updatedCorrections);
 
-      if (reviewStep < 2) {
+      if (reviewStep < 5) {
         setReviewStep(prev => prev + 1);
       } else {
         // All sections reviewed — go directly to complete
@@ -805,6 +808,203 @@ export default function MedicalHistoryScreen() {
         );
       }
 
+      case 3: {
+        const labs = prefillData.labs;
+
+        function formatLabValue(val: number | undefined, unit: string | undefined): string | null {
+          if (val == null) return null;
+          return unit ? `${val} ${unit}` : String(val);
+        }
+
+        function LabRow({
+          label,
+          lab,
+          description,
+        }: {
+          label: string;
+          lab: typeof labs.psa;
+          description: string;
+        }) {
+          const found = lab.confidence !== 'none' && lab.value != null;
+          const displayValue = found ? formatLabValue(lab.value?.value, lab.value?.unit) : null;
+          const date = found && lab.value?.date ? formatShortDate(lab.value.date) : null;
+          const refRange = found && lab.value?.referenceRange ? lab.value.referenceRange : null;
+
+          return (
+            <View style={[reviewStyles.labRow, { borderBottomColor: borderColor }]}>
+              <View style={reviewStyles.labLeft}>
+                <Text style={[reviewStyles.labName, { color: colors.text }]}>{label}</Text>
+                <Text style={[reviewStyles.labDescription, { color: colors.icon }]}>{description}</Text>
+              </View>
+              <View style={reviewStyles.labRight}>
+                {found && displayValue ? (
+                  <>
+                    <Text style={[reviewStyles.labValue, { color: colors.text }]}>{displayValue}</Text>
+                    {(date || refRange) && (
+                      <Text style={[reviewStyles.labMeta, { color: colors.icon }]}>
+                        {[date, refRange ? `Ref: ${refRange}` : null].filter(Boolean).join(' · ')}
+                      </Text>
+                    )}
+                    <View style={reviewStyles.sourceBadge}>
+                      <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
+                    </View>
+                  </>
+                ) : (
+                  <Text style={[reviewStyles.willAskText, { color: colors.icon }]}>Not found</Text>
+                )}
+              </View>
+            </View>
+          );
+        }
+
+        return (
+          <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
+            <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
+              LAB RESULTS FROM HEALTH RECORDS
+            </Text>
+            <LabRow
+              label="PSA"
+              lab={labs.psa}
+              description="Prostate-Specific Antigen"
+            />
+            <LabRow
+              label="HbA1c"
+              lab={labs.hba1c}
+              description="Hemoglobin A1c (blood sugar)"
+            />
+            <LabRow
+              label="Urinalysis"
+              lab={labs.urinalysis}
+              description="Urine test panel"
+            />
+          </View>
+        );
+      }
+
+      case 4: {
+        const conditions = prefillData.conditions;
+
+        const allConditions = [
+          ...(conditions.diabetes.value ?? []),
+          ...(conditions.hypertension.value ?? []),
+          ...(conditions.bph.value ?? []),
+          ...(conditions.other.value ?? []),
+        ];
+
+        return (
+          <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
+            <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
+              CONDITIONS FROM HEALTH RECORDS
+            </Text>
+            <View style={reviewStyles.medGroup}>
+              {allConditions.length > 0 ? (
+                allConditions.map((cond, ci) => (
+                  <View key={ci} style={reviewStyles.medItem}>
+                    <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
+                    <Text style={[reviewStyles.medName, { color: colors.text, flex: 1 }]}>
+                      {cond.name}
+                    </Text>
+                    <View style={reviewStyles.sourceBadge}>
+                      <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>
+                  No conditions found in health records
+                </Text>
+              )}
+            </View>
+          </View>
+        );
+      }
+
+      case 5: {
+        const cm = prefillData.clinicalMeasurements;
+
+        function ClinicalRow({
+          label,
+          description,
+          value,
+          unit,
+          date,
+          referenceRange,
+          found,
+        }: {
+          label: string;
+          description: string;
+          value?: number | string | null;
+          unit?: string;
+          date?: string;
+          referenceRange?: string;
+          found: boolean;
+        }) {
+          const displayValue = found && value != null
+            ? (unit ? `${value} ${unit}` : String(value))
+            : null;
+          const meta = [
+            date ? formatShortDate(date) : null,
+            referenceRange ? `Ref: ${referenceRange}` : null,
+          ].filter(Boolean).join(' · ');
+
+          return (
+            <View style={[reviewStyles.labRow, { borderBottomColor: borderColor }]}>
+              <View style={reviewStyles.labLeft}>
+                <Text style={[reviewStyles.labName, { color: colors.text }]}>{label}</Text>
+                <Text style={[reviewStyles.labDescription, { color: colors.icon }]}>{description}</Text>
+              </View>
+              <View style={reviewStyles.labRight}>
+                {displayValue ? (
+                  <>
+                    <Text style={[reviewStyles.labValue, { color: colors.text }]}>{displayValue}</Text>
+                    {meta ? (
+                      <Text style={[reviewStyles.labMeta, { color: colors.icon }]}>{meta}</Text>
+                    ) : null}
+                    <View style={reviewStyles.sourceBadge}>
+                      <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
+                    </View>
+                  </>
+                ) : (
+                  <Text style={[reviewStyles.willAskText, { color: colors.icon }]}>Not found</Text>
+                )}
+              </View>
+            </View>
+          );
+        }
+
+        return (
+          <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
+            <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
+              CLINICAL MEASUREMENTS FROM HEALTH RECORDS
+            </Text>
+            <ClinicalRow
+              label="PVR"
+              description="Post-Void Residual volume"
+              value={cm.pvr.value?.value}
+              unit={cm.pvr.value?.unit}
+              date={cm.pvr.value?.date}
+              referenceRange={cm.pvr.value?.referenceRange}
+              found={cm.pvr.confidence !== 'none'}
+            />
+            <ClinicalRow
+              label="Uroflow Qmax"
+              description="Maximum urinary flow rate"
+              value={cm.uroflowQmax.value?.value}
+              unit={cm.uroflowQmax.value?.unit}
+              date={cm.uroflowQmax.value?.date}
+              referenceRange={cm.uroflowQmax.value?.referenceRange}
+              found={cm.uroflowQmax.confidence !== 'none'}
+            />
+            <ClinicalRow
+              label="Mobility"
+              description="Functional mobility status"
+              value={cm.mobility.value}
+              found={cm.mobility.confidence !== 'none'}
+            />
+          </View>
+        );
+      }
+
       default:
         return null;
     }
@@ -835,7 +1035,7 @@ export default function MedicalHistoryScreen() {
   // ── Reviewing phase ───────────────────────────────────────────────
 
   if (phase === 'reviewing' || phase === 'complete') {
-    const isLastStep = reviewStep === 2;
+    const isLastStep = reviewStep === 5;
 
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -848,7 +1048,7 @@ export default function MedicalHistoryScreen() {
           <>
             <View style={reviewStyles.stepHeader}>
               <View style={reviewStyles.stepDots}>
-                {[0, 1, 2].map(i => (
+                {[0, 1, 2, 3, 4, 5].map(i => (
                   <View
                     key={i}
                     style={[
@@ -863,7 +1063,7 @@ export default function MedicalHistoryScreen() {
                 ))}
               </View>
               <Text style={[reviewStyles.stepCounter, { color: colors.icon }]}>
-                Step {reviewStep + 1} of 3
+                Step {reviewStep + 1} of 6
               </Text>
             </View>
 
@@ -1195,6 +1395,41 @@ const reviewStyles = StyleSheet.create({
   },
   pickerOptionText: {
     fontSize: 17,
+  },
+  labRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: Spacing.sm,
+  },
+  labLeft: {
+    flex: 1,
+    gap: 2,
+  },
+  labName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  labDescription: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  labRight: {
+    alignItems: 'flex-end',
+    gap: 4,
+    flexShrink: 1,
+  },
+  labValue: {
+    fontSize: 15,
+    fontWeight: '500',
+    textAlign: 'right',
+  },
+  labMeta: {
+    fontSize: 11,
+    textAlign: 'right',
   },
 });
 
