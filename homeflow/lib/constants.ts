@@ -30,6 +30,10 @@ export const STORAGE_KEYS = {
 
   // Permissions
   PERMISSIONS_STATUS: '@homeflow_permissions_status',
+
+  // Notification tracking (last time we fired each reminder, to avoid spam)
+  LAST_NOTIFICATION_HEALTHKIT: '@homeflow_last_notification_healthkit',
+  LAST_NOTIFICATION_THRONE: '@homeflow_last_notification_throne',
 } as const;
 
 // Legacy keys for backwards compatibility

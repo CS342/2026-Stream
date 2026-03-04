@@ -12,6 +12,7 @@ import { bootstrapHealthKitSync } from '@/src/services/healthkitSync';
 
 import { useOnboardingStatus } from '@/hooks/use-onboarding-status';
 import { useAuth } from '@/hooks/use-auth';
+import { useDataSyncCheck } from '@/hooks/use-data-sync-check';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { StandardProvider, useStandard } from '@/lib/services/standard-context';
@@ -54,6 +55,9 @@ function RootLayoutNav() {
       console.error("[HealthKit] bootstrapHealthKitSync error:", err),
     );
   }, [user?.id]);
+
+  // Run 48-hour data sync check only when user is fully in the app
+  useDataSyncCheck(!!onboardingComplete && isAuthenticated);
 
   // While checking onboarding/auth status, show loading
   if (onboardingComplete === null || authLoading) {
