@@ -14,6 +14,7 @@ import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAuth } from '@/hooks/use-auth';
+import { triggerTestNotification, requestNotificationPermissions } from '@/lib/services/notification-service';
 import {
   CONSENT_PROFILE_SUMMARY,
   DATA_PERMISSIONS_SUMMARY,
@@ -230,6 +231,56 @@ export default function ProfileScreen() {
               </View>
               <IconSymbol name="chevron.right" size={14} color={c.textTertiary} />
             </TouchableOpacity>
+
+            <View style={[styles.rowDivider, { backgroundColor: c.separator, marginVertical: 4 }]} />
+
+            <TouchableOpacity
+              style={[styles.devButton, { backgroundColor: c.secondaryFill }]}
+              onPress={async () => {
+                try {
+                  const granted = await requestNotificationPermissions();
+                  if (!granted) {
+                    Alert.alert('Permission Denied', 'Enable notifications in Settings → HomeFlow → Notifications.');
+                    return;
+                  }
+                  await triggerTestNotification('healthkit');
+                  Alert.alert('Sent', 'HealthKit reminder notification fired. Background the app to see the banner.');
+                } catch (e: any) {
+                  Alert.alert('Error', e?.message ?? 'Failed to send notification.');
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <IconSymbol name="heart.fill" size={16} color={c.semanticWarning} />
+              <Text style={[styles.devButtonText, { color: c.semanticWarning }]}>
+                Test HealthKit Reminder
+              </Text>
+            </TouchableOpacity>
+
+            <View style={[styles.rowDivider, { backgroundColor: c.separator, marginVertical: 4 }]} />
+
+            <TouchableOpacity
+              style={[styles.devButton, { backgroundColor: c.secondaryFill }]}
+              onPress={async () => {
+                try {
+                  const granted = await requestNotificationPermissions();
+                  if (!granted) {
+                    Alert.alert('Permission Denied', 'Enable notifications in Settings → HomeFlow → Notifications.');
+                    return;
+                  }
+                  await triggerTestNotification('throne');
+                  Alert.alert('Sent', 'Throne reminder notification fired. Background the app to see the banner.');
+                } catch (e: any) {
+                  Alert.alert('Error', e?.message ?? 'Failed to send notification.');
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <IconSymbol name="drop.fill" size={16} color={c.semanticWarning} />
+              <Text style={[styles.devButtonText, { color: c.semanticWarning }]}>
+                Test Throne Reminder
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -419,6 +470,20 @@ const styles = StyleSheet.create({
   },
   segmentText: {
     fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // Dev tools
+  devButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  devButtonText: {
+    fontSize: 14,
     fontWeight: '500',
   },
 
