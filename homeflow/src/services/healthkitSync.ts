@@ -38,6 +38,8 @@ import {
 import type { FieldValue } from "firebase/firestore";
 import {
   queryQuantitySamples,
+  queryCategorySamples,
+  CategoryValueSleepAnalysis,
 } from "@kingstinct/react-native-healthkit";
 import type { QuantitySample } from "@kingstinct/react-native-healthkit";
 
@@ -55,6 +57,10 @@ const METRIC_CONFIG = {
   stepCount: {
     identifier: "HKQuantityTypeIdentifierStepCount" as const,
     unit: "count",
+  },
+  heartRateVariabilitySDNN: {
+    identifier: "HKQuantityTypeIdentifierHeartRateVariabilitySDNN" as const,
+    unit: "ms",
   },
 } as const;
 
@@ -388,6 +394,122 @@ export async function syncAllHealthKit(): Promise<SyncAllResult> {
   return { ok: allOk, results };
 }
 
+// ── Sleep sync ────────────────────────────────────────────────────────────────
+
+const SLEEP_STAGE_LABEL: Record<CategoryValueSleepAnalysis, string> = {
+  [CategoryValueSleepAnalysis.inBed]: "inBed",
+  [CategoryValueSleepAnalysis.asleepUnspecified]: "asleepUnspecified",
+  [CategoryValueSleepAnalysis.awake]: "awake",
+  [CategoryValueSleepAnalysis.asleepCore]: "asleepCore",
+  [CategoryValueSleepAnalysis.asleepDeep]: "asleepDeep",
+  [CategoryValueSleepAnalysis.asleepREM]: "asleepREM",
+};
+
+export interface SyncSleepResult {
+  ok: boolean;
+  written: number;
+  error?: string;
+}
+
+/**
+ * Syncs HKCategoryTypeIdentifierSleepAnalysis samples from HealthKit to
+ * Firestore for the signed-in user.
+ *
+ * Firestore path:  users/{uid}/healthkit/sleepAnalysis/samples/{uuid}
+ * Sync state:      users/{uid}/healthkitSync/sleepAnalysis
+ *
+ * Each document stores: value (raw enum int), stage (readable string),
+ * startDate, endDate, durationMinutes, sourceName?, deviceName?.
+ */
+export async function syncSleep(): Promise<SyncSleepResult> {
+  if (Platform.OS !== "ios") return { ok: true, written: 0 };
+
+  const uid = getAuth().currentUser?.uid;
+  if (!uid) return { ok: false, written: 0, error: "no-auth" };
+
+  const syncStateRef = doc(db, `users/${uid}/healthkitSync/sleepAnalysis`);
+
+  try {
+    // 1. Determine incremental start date.
+    const stateSnap = await getDoc(syncStateRef);
+    const lastSyncedAt: Date | null = stateSnap.exists()
+      ? (stateSnap.data() as { lastSyncedAt?: Timestamp }).lastSyncedAt?.toDate() ?? null
+      : null;
+
+    const sinceDate = lastSyncedAt
+      ? new Date(lastSyncedAt.getTime() - OVERLAP_WINDOW_MS)
+      : new Date(Date.now() - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60 * 1_000);
+
+    const endDate = new Date();
+
+    // 2. Query HealthKit for sleep category samples.
+    const samples = await queryCategorySamples(
+      "HKCategoryTypeIdentifierSleepAnalysis",
+      { limit: 0, filter: { date: { startDate: sinceDate, endDate } } },
+    );
+
+    if (samples.length === 0) {
+      await setDoc(syncStateRef, { lastRunAt: serverTimestamp(), lastStatus: "ok" }, { merge: true });
+      return { ok: true, written: 0 };
+    }
+
+    // 3. Write in batches.
+    const toDate = (d: unknown): Date =>
+      d instanceof Date ? d : new Date(String(d));
+
+    let maxEndDate = new Date(0);
+
+    for (let i = 0; i < samples.length; i += BATCH_SIZE) {
+      const chunk = samples.slice(i, i + BATCH_SIZE);
+      const batch = writeBatch(db);
+
+      for (const s of chunk) {
+        const start = toDate(s.startDate);
+        const end = toDate(s.endDate);
+        if (end > maxEndDate) maxEndDate = end;
+
+        const data: Record<string, unknown> = {
+          value: s.value,
+          stage: SLEEP_STAGE_LABEL[s.value as CategoryValueSleepAnalysis] ?? "unknown",
+          startDate: Timestamp.fromDate(start),
+          endDate: Timestamp.fromDate(end),
+          durationMinutes: Math.round((end.getTime() - start.getTime()) / 60_000),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+
+        const sourceName = s.sourceRevision?.source?.name;
+        if (sourceName) data.sourceName = sourceName;
+        const deviceName = s.device?.name;
+        if (deviceName) data.deviceName = deviceName;
+
+        const ref = doc(db, `users/${uid}/healthkit/sleepAnalysis/samples/${s.uuid}`);
+        batch.set(ref, data);
+      }
+
+      await batch.commit();
+      console.log(`[HealthKit] Sleep batch committed (${chunk.length} docs)`);
+    }
+
+    // 4. Advance sync state.
+    await setDoc(syncStateRef, {
+      lastSyncedAt: Timestamp.fromDate(maxEndDate),
+      lastRunAt: serverTimestamp(),
+      lastStatus: "ok",
+    }, { merge: true });
+
+    return { ok: true, written: samples.length };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await setDoc(syncStateRef, {
+      lastRunAt: serverTimestamp(),
+      lastStatus: "error",
+      lastError: message,
+    }, { merge: true }).catch(() => {});
+    return { ok: false, written: 0, error: message };
+  }
+}
+
 // ── bootstrapHealthKitSync ────────────────────────────────────────────────────
 
 /**
@@ -398,9 +520,10 @@ export async function syncAllHealthKit(): Promise<SyncAllResult> {
 export async function bootstrapHealthKitSync(): Promise<void> {
   console.log("[HealthKit] bootstrapHealthKitSync: starting");
   try {
-    // All three pipelines use separate HealthKit APIs — run in parallel.
-    const [hkResult, clinicalResult, fhirResult] = await Promise.all([
+    // All pipelines use separate HealthKit APIs — run in parallel.
+    const [hkResult, sleepResult, clinicalResult, fhirResult] = await Promise.all([
       syncAllHealthKit(),
+      syncSleep(),
       syncClinicalNotes(),
       syncFhirPrefill(),
     ]);
@@ -409,6 +532,12 @@ export async function bootstrapHealthKitSync(): Promise<void> {
       console.log("[HealthKit] bootstrapHealthKitSync: quantity metrics synced OK", hkResult.results);
     } else {
       console.warn("[HealthKit] bootstrapHealthKitSync: quantity metrics had errors", hkResult.results);
+    }
+
+    if (sleepResult.ok) {
+      console.log(`[HealthKit] bootstrapHealthKitSync: sleep synced OK — written: ${sleepResult.written}`);
+    } else {
+      console.warn("[HealthKit] bootstrapHealthKitSync: sleep sync error:", sleepResult.error);
     }
 
     if (clinicalResult.ok) {
