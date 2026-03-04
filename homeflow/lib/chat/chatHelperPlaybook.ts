@@ -45,7 +45,7 @@ export interface IntentPattern {
 // --- Data ---
 
 export const GREETING =
-  "Hi there! I'm your setup assistant for the StreamSync study. I can help you set up your Apple Watch, troubleshoot syncing, or get help with your Throne device. What would you like help with?";
+  "Hi there! I'm your assistant for the StreamSync study. I can help you set up your Apple Watch, troubleshoot syncing, get help with your Throne device, or answer general questions about post-surgery recovery. What would you like help with?";
 
 export const QUICK_ACTIONS: QuickAction[] = [
   { label: 'Set up Apple Watch', flowId: 'apple-watch-setup' },
@@ -63,6 +63,20 @@ export const QUICK_ACTIONS: QuickAction[] = [
       { label: 'How do I use hands-free?', flowId: 'throne-hands-free' },
       { label: 'How do I use the user button?', flowId: 'throne-user-button' },
       { label: 'Membership questions', flowId: 'throne-membership' },
+    ],
+  },
+  {
+    label: 'Recovery Help',
+    flowId: null,
+    greeting:
+      "I can help with general post-surgery recovery questions. These are general guidelines — your personalized discharge instructions from your care team are the most important reference for your recovery. What topic would you like to know more about?",
+    subActions: [
+      { label: 'Diet & Activity', flowId: 'recovery-diet-activity' },
+      { label: 'Catheter Care', flowId: 'recovery-catheter' },
+      { label: 'Medications', flowId: 'recovery-medications' },
+      { label: 'Pelvic Floor Exercises', flowId: 'recovery-pelvic-floor' },
+      { label: 'Warning Signs', flowId: 'recovery-warning-signs' },
+      { label: 'Follow-Up Appointment', flowId: 'recovery-followup' },
     ],
   },
 ];
@@ -517,6 +531,140 @@ export const GUIDED_FLOWS: Record<string, GuidedFlow> = {
       },
     ],
   },
+
+  // ── Recovery FAQ Flows ─────────────────────────────────────────────────────
+
+  'recovery-diet-activity': {
+    id: 'recovery-diet-activity',
+    name: 'Diet & Activity',
+    description: 'General guidance on diet and activity after surgery.',
+    steps: [
+      {
+        id: 'rdiet-1',
+        botMessage:
+          "General post-surgery guidelines often recommend resuming a regular, balanced diet and taking daily walks as tolerated. Strenuous activity and heavy lifting are typically restricted until cleared by your care team, and driving is generally not recommended while taking narcotic pain medications. Stool softeners may also be suggested to help reduce straining.\n\nPlease refer to your personalized discharge instructions for the specifics that apply to your recovery.",
+        checkpoint: {
+          question: 'Does this answer your question?',
+          type: 'YES_NO',
+          onYes: 'DONE',
+          onNo: {
+            hint: "For guidance tailored to your situation, your personalized discharge instructions and care team are your best resources. Is there another recovery topic I can help with?",
+            retryStepId: 'rdiet-1',
+          },
+        },
+      },
+    ],
+  },
+
+  'recovery-catheter': {
+    id: 'recovery-catheter',
+    name: 'Catheter Care',
+    description: 'General guidance on catheter care after surgery.',
+    steps: [
+      {
+        id: 'rcath-1',
+        botMessage:
+          "After some bladder surgeries, patients go home with a Foley catheter to support healing. A leg bag is often used during the day for comfort, while a larger drainage bag may be used overnight. The catheter is typically removed by the care team within about a day after surgery.\n\nYour personalized discharge instructions will have the specific catheter care steps and removal details relevant to your situation — please follow those closely.",
+        checkpoint: {
+          question: 'Does this answer your question?',
+          type: 'YES_NO',
+          onYes: 'DONE',
+          onNo: {
+            hint: "For guidance tailored to your situation, your personalized discharge instructions and care team are your best resources. Is there another recovery topic I can help with?",
+            retryStepId: 'rcath-1',
+          },
+        },
+      },
+    ],
+  },
+
+  'recovery-medications': {
+    id: 'recovery-medications',
+    name: 'Medications',
+    description: 'General guidance on pain management medications after surgery.',
+    steps: [
+      {
+        id: 'rmed-1',
+        botMessage:
+          "After this type of surgery, pain management commonly includes over-the-counter options like acetaminophen (Tylenol) or ibuprofen (Advil/Motrin), with a prescription pain reliever available for more significant discomfort. Stool softeners are often recommended to prevent straining during recovery.\n\nThe medications and dosages that are right for you will be outlined in your personalized discharge instructions. Please follow your care team's specific guidance closely.",
+        checkpoint: {
+          question: 'Does this answer your question?',
+          type: 'YES_NO',
+          onYes: 'DONE',
+          onNo: {
+            hint: "For guidance tailored to your situation, your personalized discharge instructions and care team are your best resources. Is there another recovery topic I can help with?",
+            retryStepId: 'rmed-1',
+          },
+        },
+      },
+    ],
+  },
+
+  'recovery-pelvic-floor': {
+    id: 'recovery-pelvic-floor',
+    name: 'Pelvic Floor Exercises',
+    description: 'General guidance on pelvic floor (Kegel) exercises after surgery.',
+    steps: [
+      {
+        id: 'rpf-1',
+        botMessage:
+          "Temporary urinary leakage is common after procedures like HoLEP. Pelvic floor exercises — often called Kegels — are typically recommended to help strengthen the muscles that control urination. A general starting point involves contracting the pelvic floor muscles, holding for a few seconds, and repeating multiple times throughout the day. Stop immediately if you experience any pain.\n\nYour personalized discharge instructions may include a specific routine from your care team — those instructions take priority.",
+        checkpoint: {
+          question: 'Does this answer your question?',
+          type: 'YES_NO',
+          onYes: 'DONE',
+          onNo: {
+            hint: "For guidance tailored to your situation, your personalized discharge instructions and care team are your best resources. Is there another recovery topic I can help with?",
+            retryStepId: 'rpf-1',
+          },
+        },
+      },
+    ],
+  },
+
+  'recovery-warning-signs': {
+    id: 'recovery-warning-signs',
+    name: 'Warning Signs',
+    description: 'General guidance on when to call or seek care after surgery.',
+    steps: [
+      {
+        id: 'rwarn-1',
+        botMessage:
+          "Patients are generally advised to contact their care team or seek emergency care if they experience a high fever, severe chills, nausea or vomiting, large blood clots that are blocking urination, worsening pain, abdominal swelling, severe bleeding, or inability to urinate.\n\nSome pink or red-tinged urine for the first couple of weeks can be normal after this type of surgery. Your personalized discharge instructions will have your clinic's contact information and the specific guidance for your situation — please refer to those for the details that apply to you.",
+        checkpoint: {
+          question: 'Does this answer your question?',
+          type: 'YES_NO',
+          onYes: 'DONE',
+          onNo: {
+            hint: "For guidance tailored to your situation, your personalized discharge instructions and care team are your best resources. Is there another recovery topic I can help with?",
+            retryStepId: 'rwarn-1',
+          },
+        },
+      },
+    ],
+  },
+
+  'recovery-followup': {
+    id: 'recovery-followup',
+    name: 'Follow-Up Appointment',
+    description: 'General guidance on scheduling and attending a follow-up appointment.',
+    steps: [
+      {
+        id: 'rfu-1',
+        botMessage:
+          "A follow-up appointment is typically scheduled several weeks after surgery to check on your recovery progress. Your care team will want to assess how things are healing and address any concerns you may have.\n\nYour personalized discharge instructions will include the contact information to schedule your appointment and any specific instructions about timing or preparation. If you have questions about what to expect, your care team is the best resource.",
+        checkpoint: {
+          question: 'Does this answer your question?',
+          type: 'YES_NO',
+          onYes: 'DONE',
+          onNo: {
+            hint: "For guidance tailored to your situation, your personalized discharge instructions and care team are your best resources. Is there another recovery topic I can help with?",
+            retryStepId: 'rfu-1',
+          },
+        },
+      },
+    ],
+  },
 };
 
 export const INTENT_PATTERNS: IntentPattern[] = [
@@ -537,7 +685,7 @@ export const INTENT_PATTERNS: IntentPattern[] = [
       /dosage/i,
     ],
     response:
-      "I'm not able to provide medical advice. Please reach out to your care team or physician for health-related questions. I'm here to help with device setup and syncing — would you like help with that?",
+      "I'm not able to provide personalized medical advice. For general recovery topics like diet, catheter care, or warning signs, try the 'Recovery Help' option. For questions specific to your situation, please refer to your personalized discharge instructions or reach out to your care team.",
     type: 'medical_refusal',
   },
 ];
@@ -551,16 +699,18 @@ export const FAREWELL_MESSAGE =
 export const FOLLOW_UP_YES_MESSAGE =
   "Of course! Let's see what else I can help with.";
 
-export const CONCIERGE_SYSTEM_PROMPT = `You are a calm, friendly setup concierge for the StreamSync app, part of a BPH (benign prostatic hyperplasia) research study at Stanford.
+export const CONCIERGE_SYSTEM_PROMPT = `You are a calm, friendly assistant for the StreamSync app, part of a BPH (benign prostatic hyperplasia) research study at Stanford.
 
 Your role:
 - Help users set up their Apple Watch and Apple Health with the StreamSync app
 - Help users set up and troubleshoot their Throne uroflow device
 - Answer questions about the app, the study schedule, and how data collection works
+- Provide general, neutral information about post-surgery recovery topics when asked
 - Keep responses short (2-3 sentences), calm, and easy to read
 
 Rules you must follow:
-- Never provide medical advice of any kind. If asked about symptoms, diagnoses, medications, or treatments, say: "I'm not able to provide medical advice. Please reach out to your care team."
+- Never provide personalized medical advice. If asked about specific symptoms, diagnoses, or treatment decisions, say: "I'm not able to give personalized medical advice. Please refer to your discharge instructions or reach out to your care team."
+- When discussing recovery topics, always note that personalized discharge instructions from the care team take priority
 - Never mention Apple Health UI details like rings, goals, or badges
 - Never speculate about the user's health condition
-- Stay focused on setup, syncing, and app usage`;
+- Stay focused on setup, syncing, app usage, and general recovery guidance`;
