@@ -1,17 +1,21 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 // Global CSS for web (theming for alert dialogs, etc.) - only processed on web
 import '@/assets/styles/global.css';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '@/src/services/firebase';
+import { bootstrapHealthKitSync } from '@/src/services/healthkitSync';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingStatus } from '@/hooks/use-onboarding-status';
 import { useAuth } from '@/hooks/use-auth';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { StandardProvider, useStandard } from '@/lib/services/standard-context';
+import { AppThemeProvider, useAppTheme } from '@/lib/theme/ThemeContext';
 
 export const unstable_settings = {
   // Initial route while loading
@@ -23,7 +27,33 @@ export const unstable_settings = {
  */
 function RootLayoutNav() {
   const onboardingComplete = useOnboardingStatus();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+
+  // Run bootstrapHealthKitSync exactly once per signed-in uid.
+  // A ref guard prevents re-firing on re-renders or context refreshes.
+  const lastBootstrappedUid = useRef<string | null>(null);
+
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) return;
+    if (lastBootstrappedUid.current === uid) return;
+    lastBootstrappedUid.current = uid;
+
+    // Guaranteed debug write — confirms the app can reach Firestore.
+    const pingPath = `debug/ping-${uid}`;
+    setDoc(doc(db, pingPath), {
+      ok: true,
+      ts: serverTimestamp(),
+      platform: Platform.OS,
+    })
+      .then(() => console.log(`[Firebase] Wrote debug ping: ${pingPath}`))
+      .catch((err) => console.error("[Firebase] Debug ping write failed:", err));
+
+    // Bootstrap HealthKit → Firestore sync (fire-and-forget; never throws).
+    bootstrapHealthKitSync().catch((err) =>
+      console.error("[HealthKit] bootstrapHealthKitSync error:", err),
+    );
+  }, [user?.id]);
 
   // While checking onboarding/auth status, show loading
   if (onboardingComplete === null || authLoading) {
@@ -50,10 +80,10 @@ function RootLayoutNav() {
         redirect={!onboardingComplete || isAuthenticated}
       />
 
-      {/* Main app - shown when onboarding complete AND signed in */}
+      {/* Main app - shown when onboarding complete (auth handled during onboarding) */}
       <Stack.Screen
         name="(tabs)"
-        redirect={!onboardingComplete || !isAuthenticated}
+        redirect={!onboardingComplete}
       />
 
       {/* Modal screens */}
@@ -68,6 +98,22 @@ function RootLayoutNav() {
       <Stack.Screen
         name="consent-viewer"
         options={{ presentation: 'modal', headerShown: false }}
+      />
+      <Stack.Screen
+        name="throne-session"
+        options={{ headerShown: false }}
+      />
+
+      {/* Post-surgery recovery instructions (Stanford HoLEP discharge) */}
+      <Stack.Screen
+        name="post-surgery-recovery"
+        options={{ headerShown: false }}
+      />
+
+      {/* Dev-only: FHIR parser test screen (accessible from Profile > Developer) */}
+      <Stack.Screen
+        name="fhir-parser-test"
+        options={{ headerShown: false }}
       />
 
       {/* Index route for initial redirect */}
@@ -90,24 +136,36 @@ function AppContent({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * Inner shell — has access to AppThemeProvider so it can read the resolved theme
+ * and pass it to React Navigation's ThemeProvider + StatusBar.
+ */
+function ThemedApp() {
+  const { theme } = useAppTheme();
+
+  return (
+    <ThemeProvider value={theme.isDark ? DarkTheme : DefaultTheme}>
+      <StandardProvider>
+        <AppContent>
+          <RootLayoutNav />
+          <StatusBar style={theme.isDark ? 'light' : 'dark'} />
+        </AppContent>
+      </StandardProvider>
+    </ThemeProvider>
+  );
+}
+
+/**
  * Root Layout
  *
  * Handles onboarding, authentication, and main app navigation.
  * Flow: Onboarding -> Auth -> Main App
  */
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <ErrorBoundary>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <StandardProvider>
-          <AppContent>
-            <RootLayoutNav />
-            <StatusBar style="auto" />
-          </AppContent>
-        </StandardProvider>
-      </ThemeProvider>
+      <AppThemeProvider>
+        <ThemedApp />
+      </AppThemeProvider>
     </ErrorBoundary>
   );
 }
