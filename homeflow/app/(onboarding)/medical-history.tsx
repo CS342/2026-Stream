@@ -681,9 +681,23 @@ export default function MedicalHistoryScreen() {
           <>
             {/* All health-record medications in a single flat list */}
             <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
-              <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
-                MEDICATIONS FROM HEALTH RECORDS
-              </Text>
+              <View style={reviewStyles.cardSectionTitleRow}>
+                <Text style={[reviewStyles.cardSectionTitle, reviewStyles.cardSectionTitleInRow, { color: colors.icon }]}>
+                  MEDICATIONS FROM HEALTH RECORDS
+                </Text>
+                <TouchableOpacity
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => {
+                    if (editableMeds.length > 0) {
+                      setEditingMedId(editableMeds[0].id);
+                      setEditingMedValue(editableMeds[0].name);
+                      setEditingProcId(null);
+                    }
+                  }}
+                >
+                  <IconSymbol name="pencil" size={15} color={colors.icon} />
+                </TouchableOpacity>
+              </View>
               <View style={reviewStyles.medGroup}>
                 {editableMeds.length > 0 ? (
                   editableMeds.map(item => (
@@ -1314,6 +1328,14 @@ const reviewStyles = StyleSheet.create({
     borderRadius: 14,
     overflow: 'hidden',
   },
+  cardSectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xs,
+  },
   cardSectionTitle: {
     fontSize: 11,
     fontWeight: '700',
@@ -1321,6 +1343,11 @@ const reviewStyles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingTop: Spacing.md,
     paddingBottom: Spacing.xs,
+  },
+  cardSectionTitleInRow: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
   dataRow: {
     flexDirection: 'row',
