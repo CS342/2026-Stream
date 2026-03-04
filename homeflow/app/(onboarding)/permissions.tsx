@@ -173,7 +173,7 @@ export default function PermissionsScreen() {
         </View>
 
         <Text style={[styles.description, { color: colors.icon }]}>
-          HomeFlow needs access to your health data to track your activity, sleep, and symptoms.
+          StreamSync needs access to your health data to track your activity, sleep, and symptoms.
           Your data is encrypted and only used for research purposes.
         </Text>
 
