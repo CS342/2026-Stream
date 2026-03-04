@@ -97,9 +97,10 @@ function extractAttachment(
 /**
  * Syncs all available clinical notes for the signed-in user.
  *
- * Notes with no embedded attachment data (url-only references) are skipped
- * because HealthKit only vends embedded content — there is no way to resolve
- * the external URL from within the app.
+ * Every note gets a Firestore metadata document regardless of whether inline
+ * attachment data is available. Storage upload only happens when the FHIR
+ * attachment carries base64-encoded `data`; url-only references are recorded
+ * in Firestore with storageRef: null so they still appear in the collection.
  */
 export async function syncClinicalNotes(): Promise<SyncClinicalNotesResult> {
   if (Platform.OS !== 'ios') {
@@ -140,56 +141,56 @@ export async function syncClinicalNotes(): Promise<SyncClinicalNotesResult> {
 
       // ── Extract attachment ───────────────────────────────────────────────
       const attachment = extractAttachment(note.fhirResource);
+      const contentType = attachment?.contentType ?? 'application/pdf';
 
-      if (!attachment?.data) {
-        // Note has no embedded data (url-only or missing FHIR resource)
-        console.warn(
-          `[ClinicalNotes] Note ${note.id} ("${note.displayName}") has no embedded attachment — skipping`,
+      // ── Upload to Firebase Storage (only when inline data is available) ──
+      let storagePath: string | null = null;
+
+      if (attachment?.data) {
+        storagePath = `users/${uid}/clinical-notes/${note.id}`;
+        const storageRef = ref(storage, storagePath);
+
+        await uploadString(storageRef, attachment.data, 'base64', {
+          contentType,
+          customMetadata: {
+            noteId: note.id,
+            displayName: note.displayName,
+            fhirSourceURL: note.fhirSourceURL ?? '',
+          },
+        });
+
+        console.log(
+          `[ClinicalNotes] Uploaded ${storagePath} (${contentType}, ~${attachment.size ?? '?'} bytes)`,
         );
-        skipped++;
-        continue;
+        uploaded++;
+      } else {
+        console.log(
+          `[ClinicalNotes] Note ${note.id} ("${note.displayName}") has no inline data — recording metadata only`,
+        );
       }
 
-      // ── Upload to Firebase Storage ───────────────────────────────────────
-      const storagePath = `users/${uid}/clinical-notes/${note.id}`;
-      const storageRef = ref(storage, storagePath);
-      const contentType = attachment.contentType ?? 'application/pdf';
-
-      await uploadString(storageRef, attachment.data, 'base64', {
-        contentType,
-        customMetadata: {
-          noteId: note.id,
-          displayName: note.displayName,
-          fhirSourceURL: note.fhirSourceURL ?? '',
-        },
-      });
-
-      console.log(
-        `[ClinicalNotes] Uploaded ${storagePath} (${contentType}, ~${attachment.size ?? '?'} bytes)`,
-      );
-
-      // ── Write metadata to Firestore ──────────────────────────────────────
-      // The full document lives in Storage; Firestore holds only lightweight
-      // metadata plus the medgemmaStatus field for the end-of-study pipeline.
+      // ── Write metadata to Firestore (always, for every note) ────────────
+      // storageRef is null when the attachment was url-only; the MedGemma
+      // batch job should skip docs where storageRef === null.
       await setDoc(metaRef, {
         displayName: note.displayName,
         startDate: Timestamp.fromDate(new Date(note.startDate)),
         endDate: Timestamp.fromDate(new Date(note.endDate)),
         contentType,
-        title: attachment.title ?? null,
-        storageRef: storagePath,
+        title: attachment?.title ?? null,
+        storageRef: storagePath,          // null → no inline data available
+        attachmentUrl: attachment?.url ?? null,
         fhirResourceType: note.fhirResourceType ?? null,
         fhirSourceURL: note.fhirSourceURL ?? null,
         // End-of-study MedGemma pipeline reads all docs where this == 'pending'
-        medgemmaStatus: 'pending',
+        // and storageRef != null (has uploadable content)
+        medgemmaStatus: storagePath ? 'pending' : 'no-data',
         uploadedAt: serverTimestamp(),
       });
-
-      uploaded++;
     }
 
     console.log(
-      `[ClinicalNotes] Sync complete — uploaded: ${uploaded}, skipped: ${skipped}`,
+      `[ClinicalNotes] Sync complete — uploaded to Storage: ${uploaded}, already-existed (skipped): ${skipped}`,
     );
     return { ok: true, uploaded, skipped };
   } catch (err) {
