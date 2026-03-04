@@ -9,10 +9,11 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		2520E33509CBB6E7BFBB83F6 /* libPods-HomeFlow.a in Frameworks */ = {isa = PBXBuildFile; fileRef = F0B05807DAA7EC15E2DE6ED5 /* libPods-HomeFlow.a */; };
-		31A024BC08B6A796A2A7C30E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 8FDD2D2B4AF190C01933B668 /* PrivacyInfo.xcprivacy */; };
+		31A024BC08B6A796A2A7C30E /* BuildFile in Resources */ = {isa = PBXBuildFile; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
+		963BDA79AC5FFE9D68B05A01 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = F39DD6A866894CC630B24FD0 /* PrivacyInfo.xcprivacy */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		CB21B2499DBD4ED7C0A90315 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 932A01F59D95FB87CA82478D /* ExpoModulesProvider.swift */; };
+		C8FC336D4DF065D701F8FE46 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2635C46BD49520A4970CDAB2 /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -20,11 +21,8 @@
 		13B07F961A680F5B00A75B9A /* HomeFlow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HomeFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = HomeFlow/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = HomeFlow/Info.plist; sourceTree = "<group>"; };
-		24A7EF4276D45AC52EF6B7A6 /* libPods-HomeFlow.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-HomeFlow.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		326D018C2EF7167CDBB461A5 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-HomeFlow/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		42CC32645DAAB3607522405A /* Pods-HomeFlow.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HomeFlow.release.xcconfig"; path = "Target Support Files/Pods-HomeFlow/Pods-HomeFlow.release.xcconfig"; sourceTree = "<group>"; };
-		5D614E4466675C6ABC12F82F /* Pods-HomeFlow.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HomeFlow.debug.xcconfig"; path = "Target Support Files/Pods-HomeFlow/Pods-HomeFlow.debug.xcconfig"; sourceTree = "<group>"; };
-		82D567622218F40090F50B48 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = HomeFlow/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		2635C46BD49520A4970CDAB2 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-HomeFlow/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		4A2E65558FF70B963BF292CC /* Pods-HomeFlow.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HomeFlow.release.xcconfig"; path = "Target Support Files/Pods-HomeFlow/Pods-HomeFlow.release.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = HomeFlow/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
 		E293299E035AA5F8170074DA /* Pods-HomeFlow.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-HomeFlow.debug.xcconfig"; path = "Target Support Files/Pods-HomeFlow/Pods-HomeFlow.debug.xcconfig"; sourceTree = "<group>"; };
@@ -32,6 +30,7 @@
 		F0B05807DAA7EC15E2DE6ED5 /* libPods-HomeFlow.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-HomeFlow.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = HomeFlow/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* HomeFlow-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "HomeFlow-Bridging-Header.h"; path = "HomeFlow/HomeFlow-Bridging-Header.h"; sourceTree = "<group>"; };
+		F39DD6A866894CC630B24FD0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = HomeFlow/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -63,7 +62,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				8FDD2D2B4AF190C01933B668 /* PrivacyInfo.xcprivacy */,
+				F39DD6A866894CC630B24FD0 /* PrivacyInfo.xcprivacy */,
 			);
 			name = HomeFlow;
 			sourceTree = "<group>";
@@ -80,7 +79,7 @@
 		49B95061D3108EDF0F3CB595 /* HomeFlow */ = {
 			isa = PBXGroup;
 			children = (
-				932A01F59D95FB87CA82478D /* ExpoModulesProvider.swift */,
+				2635C46BD49520A4970CDAB2 /* ExpoModulesProvider.swift */,
 			);
 			name = HomeFlow;
 			sourceTree = "<group>";
@@ -89,7 +88,7 @@
 			isa = PBXGroup;
 			children = (
 				E293299E035AA5F8170074DA /* Pods-HomeFlow.debug.xcconfig */,
-				46D8236488368F4AA1119996 /* Pods-HomeFlow.release.xcconfig */,
+				4A2E65558FF70B963BF292CC /* Pods-HomeFlow.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -133,31 +132,6 @@
 			path = HomeFlow/Supporting;
 			sourceTree = "<group>";
 		};
-		C470204D92E850BA354AB466 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				5D614E4466675C6ABC12F82F /* Pods-HomeFlow.debug.xcconfig */,
-				42CC32645DAAB3607522405A /* Pods-HomeFlow.release.xcconfig */,
-			);
-			path = Pods;
-			sourceTree = "<group>";
-		};
-		C7A76282BED349F5FB825BC9 /* HomeFlow */ = {
-			isa = PBXGroup;
-			children = (
-				326D018C2EF7167CDBB461A5 /* ExpoModulesProvider.swift */,
-			);
-			name = HomeFlow;
-			sourceTree = "<group>";
-		};
-		F97F0906BAF7BB4193F9BA60 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				C7A76282BED349F5FB825BC9 /* HomeFlow */,
-			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -192,9 +166,9 @@
 				LastUpgradeCheck = 1130;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
+						DevelopmentTeam = DR492LE84K;
 						LastSwiftMigration = 1250;
 						ProvisioningStyle = Automatic;
-						DevelopmentTeam = "DR492LE84K";
 					};
 				};
 			};
@@ -224,7 +198,8 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				31A024BC08B6A796A2A7C30E /* PrivacyInfo.xcprivacy in Resources */,
+				31A024BC08B6A796A2A7C30E /* BuildFile in Resources */,
+				963BDA79AC5FFE9D68B05A01 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -372,7 +347,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				CB21B2499DBD4ED7C0A90315 /* ExpoModulesProvider.swift in Sources */,
+				C8FC336D4DF065D701F8FE46 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -389,7 +364,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = DR492LE84K;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -415,13 +390,12 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
-				DEVELOPMENT_TEAM = "DR492LE84K";
 			};
 			name = Debug;
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 46D8236488368F4AA1119996 /* Pods-HomeFlow.release.xcconfig */;
+			baseConfigurationReference = 4A2E65558FF70B963BF292CC /* Pods-HomeFlow.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
@@ -429,7 +403,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = DR492LE84K;
 				INFOPLIST_FILE = HomeFlow/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -449,7 +423,6 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VERSIONING_SYSTEM = "apple-generic";
-				DEVELOPMENT_TEAM = "DR492LE84K";
 			};
 			name = Release;
 		};
