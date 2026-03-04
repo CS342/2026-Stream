@@ -523,7 +523,7 @@ export default function RecoveryScreen() {
 
         <Text style={[styles.disclaimer, { color: c.textTertiary }]}>
           This information is for educational purposes only and does not constitute
-          medical advice. Always follow your care team's specific instructions.
+          medical advice. Always follow your care team&apos;s specific instructions.
         </Text>
 
         <View style={{ height: 40 }} />

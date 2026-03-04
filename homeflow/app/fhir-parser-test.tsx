@@ -400,9 +400,6 @@ type RunState =
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function FhirParserTestScreen() {
-  // Production guard — must be first
-  if (!__DEV__) return null;
-
   const { theme } = useAppTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -443,6 +440,9 @@ export default function FhirParserTestScreen() {
       }
     }
   }, [runState]);
+
+  // Production guard — after all hooks to satisfy Rules of Hooks
+  if (!__DEV__) return null;
 
   const prefill = runState.status === 'success' ? runState.result.prefill : null;
   const rawResources = runState.status === 'success' ? runState.result.rawResources : [];

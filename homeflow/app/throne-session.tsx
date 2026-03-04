@@ -227,7 +227,7 @@ export default function ThroneSessionDetailScreen() {
       if (!id) return;
       try {
         const [allSessions, metrics] = await Promise.all([
-          fetchSessions({maxResults: 200}),
+          fetchSessions(),
           fetchMetricsForSession(id),
         ]);
         if (!cancelled) {

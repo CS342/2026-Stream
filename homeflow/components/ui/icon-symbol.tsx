@@ -47,6 +47,9 @@ const MAPPING = {
   // Documents
   'doc.text.fill': 'description',
 
+  // Appearance
+  'circle.lefthalf.filled': 'contrast',
+
   // Health
   'moon.fill': 'nightlight',
   'figure.walk': 'directions-walk',
