@@ -43,6 +43,7 @@ import type { QuantitySample } from "@kingstinct/react-native-healthkit";
 
 import { db, getAuth } from "./firestore";
 import { syncClinicalNotes } from "./clinicalNotesSync";
+import { syncFhirPrefill } from "./fhirPrefillSync";
 
 // ── Metric configuration ──────────────────────────────────────────────────────
 
@@ -397,11 +398,11 @@ export async function syncAllHealthKit(): Promise<SyncAllResult> {
 export async function bootstrapHealthKitSync(): Promise<void> {
   console.log("[HealthKit] bootstrapHealthKitSync: starting");
   try {
-    // Quantity samples (heart rate, step count) and clinical notes run in
-    // parallel — they hit different HealthKit APIs so there's no contention.
-    const [hkResult, clinicalResult] = await Promise.all([
+    // All three pipelines use separate HealthKit APIs — run in parallel.
+    const [hkResult, clinicalResult, fhirResult] = await Promise.all([
       syncAllHealthKit(),
       syncClinicalNotes(),
+      syncFhirPrefill(),
     ]);
 
     if (hkResult.ok) {
@@ -416,6 +417,15 @@ export async function bootstrapHealthKitSync(): Promise<void> {
       );
     } else {
       console.warn("[HealthKit] bootstrapHealthKitSync: clinical notes sync error:", clinicalResult.error);
+    }
+
+    if (fhirResult.ok) {
+      console.log(
+        "[HealthKit] bootstrapHealthKitSync: FHIR prefill synced OK",
+        fhirResult.sourceRecordCounts,
+      );
+    } else {
+      console.warn("[HealthKit] bootstrapHealthKitSync: FHIR prefill sync error:", fhirResult.error);
     }
   } catch (err) {
     console.error("[HealthKit] bootstrapHealthKitSync: unexpected error:", err);
