@@ -181,7 +181,7 @@ export default function CompleteScreen() {
           >
             <IconSymbol name={'info.circle.fill' as any} size={20} color={StanfordColors.cardinal} />
             <Text style={[styles.tipText, { color: colors.text }]}>
-              For the best experience, wear your Apple Watch regularly and keep the HomeFlow app running in the background.
+              For the best experience, wear your Apple Watch regularly and keep the StreamSync app running in the background.
             </Text>
           </View>
         </Animated.View>

@@ -55,9 +55,16 @@ const MAPPING = {
   'checklist': 'checklist',
   'chevron.left': 'chevron-left',
 
+  // Appearance
+  'circle.lefthalf.filled': 'contrast',
+
   // Health
   'moon.fill': 'nightlight',
   'figure.walk': 'directions-walk',
+  'fork.knife': 'restaurant',
+  'pills.fill': 'medication',
+  'figure.strengthtraining.traditional': 'fitness-center',
+  'bandage.fill': 'healing',
 
   // Tabs & Home
   'drop.fill': 'water-drop',

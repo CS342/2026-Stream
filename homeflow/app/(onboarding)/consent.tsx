@@ -120,9 +120,9 @@ export default function ConsentScreen() {
       await ConsentService.recordConsent(signatureValue);
 
       // Update onboarding
-      await OnboardingService.goToStep(OnboardingStep.PERMISSIONS);
+      await OnboardingService.goToStep(OnboardingStep.ACCOUNT);
 
-      router.push('/(onboarding)/permissions' as Href);
+      router.push('/(onboarding)/account' as Href);
     } finally {
       setIsSubmitting(false);
     }
