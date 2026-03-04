@@ -15,6 +15,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -33,6 +34,7 @@ import {
   DevToolBar,
 } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { SignaturePad, type SignaturePadRef } from '@/components/ui/SignaturePad';
 
 function renderConsentContent(text: string) {
   const parts = text.split(/(\*\*.*?\*\*)/g);
@@ -54,12 +56,20 @@ export default function ConsentScreen() {
   const colors = Colors[colorScheme ?? 'light'];
 
   const [agreed, setAgreed] = useState(false);
-  const [signature, setSignature] = useState('');
+  const [signatureMode, setSignatureMode] = useState<'type' | 'draw'>('type');
+  const [typedSignature, setTypedSignature] = useState('');
+  const [hasDrawnSignature, setHasDrawnSignature] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
+  const signaturePadRef = useRef<SignaturePadRef>(null);
 
-  const canContinue = agreed && signature.trim().length > 0;
+  const signatureValid =
+    signatureMode === 'type'
+      ? typedSignature.trim().length > 0
+      : hasDrawnSignature;
+
+  const canContinue = agreed && signatureValid;
 
   const handleContinue = async () => {
     if (!canContinue) return;
@@ -67,8 +77,12 @@ export default function ConsentScreen() {
     setIsSubmitting(true);
 
     try {
-      // Record consent
-      await ConsentService.recordConsent(signature);
+      // Record consent — store typed name or a drawn-signature marker
+      const signatureValue =
+        signatureMode === 'type'
+          ? typedSignature.trim()
+          : '[Drawn signature provided]';
+      await ConsentService.recordConsent(signatureValue);
 
       // Update onboarding
       await OnboardingService.goToStep(OnboardingStep.PERMISSIONS);
@@ -148,34 +162,102 @@ export default function ConsentScreen() {
             styles.signatureContainer,
             {
               backgroundColor: colorScheme === 'dark' ? '#1C1C1E' : '#FFFFFF',
-              borderColor: signature.trim().length > 0 ? '#34C759' : colors.border,
+              borderColor: signatureValid ? '#34C759' : colors.border,
             },
           ]}
         >
           <Text style={[styles.signatureLabel, { color: colors.text }]}>
-            Please type your full name to sign
+            Signature
           </Text>
-          <TextInput
-            style={[
-              styles.signatureInput,
-              {
-                color: colors.text,
-                borderColor: colors.border,
-                backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F9F9F9',
-              },
-            ]}
-            placeholder="Your full name"
-            placeholderTextColor={colors.icon}
-            value={signature}
-            onChangeText={setSignature}
-            autoCapitalize="words"
-            autoCorrect={false}
-            onFocus={() => {
-              setTimeout(() => {
-                scrollViewRef.current?.scrollToEnd({ animated: true });
-              }, 300);
-            }}
-          />
+
+          {/* Type / Draw tab switcher */}
+          <View style={[styles.modeTabs, { backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F2F2F7' }]}>
+            {(['type', 'draw'] as const).map(mode => (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.modeTab,
+                  signatureMode === mode && {
+                    backgroundColor: colorScheme === 'dark' ? '#3A3A3C' : '#FFFFFF',
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 2,
+                    elevation: 2,
+                  },
+                ]}
+                onPress={() => setSignatureMode(mode)}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  name={mode === 'type' ? 'keyboard' : 'pencil.tip'}
+                  size={14}
+                  color={signatureMode === mode ? StanfordColors.cardinal : colors.icon}
+                />
+                <Text
+                  style={[
+                    styles.modeTabText,
+                    { color: signatureMode === mode ? StanfordColors.cardinal : colors.icon },
+                  ]}
+                >
+                  {mode === 'type' ? 'Type' : 'Draw'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Type mode */}
+          {signatureMode === 'type' && (
+            <TextInput
+              style={[
+                styles.signatureInput,
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: colorScheme === 'dark' ? '#2C2C2E' : '#F9F9F9',
+                },
+              ]}
+              placeholder="Your full name"
+              placeholderTextColor={colors.icon}
+              value={typedSignature}
+              onChangeText={setTypedSignature}
+              autoCapitalize="words"
+              autoCorrect={false}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 300);
+              }}
+            />
+          )}
+
+          {/* Draw mode */}
+          {signatureMode === 'draw' && (
+            <View>
+              <SignaturePad
+                ref={signaturePadRef}
+                onChanged={setHasDrawnSignature}
+                strokeColor={colorScheme === 'dark' ? '#FFFFFF' : '#1A1A1A'}
+                backgroundColor={colorScheme === 'dark' ? '#2C2C2E' : '#F9F9F9'}
+                height={160}
+              />
+              {hasDrawnSignature && (
+                <TouchableOpacity
+                  style={styles.clearDrawButton}
+                  onPress={() => {
+                    signaturePadRef.current?.clear();
+                    setHasDrawnSignature(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.clearDrawText, { color: colors.icon }]}>
+                    Clear
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
           <Text style={[styles.signatureDate, { color: colors.icon }]}>
             Date: {new Date().toLocaleDateString()}
           </Text>
@@ -275,6 +357,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: Spacing.sm,
     textAlign: 'right',
+  },
+  modeTabs: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    padding: 3,
+    marginBottom: Spacing.sm,
+  },
+  modeTab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingVertical: 7,
+    borderRadius: 6,
+  },
+  modeTabText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  clearDrawButton: {
+    alignSelf: 'flex-end',
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+    marginTop: 6,
+  },
+  clearDrawText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   footer: {
     padding: Spacing.md,
