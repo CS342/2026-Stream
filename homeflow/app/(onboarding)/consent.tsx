@@ -427,7 +427,7 @@ export default function ConsentScreen() {
           <View style={emailStyles.sheet}>
             <Text style={emailStyles.sheetTitle}>Email a Copy</Text>
             <Text style={emailStyles.sheetSubtitle}>
-              Enter the address where you'd like to receive your consent confirmation.
+              Enter the address where you&apos;d like to receive your consent confirmation.
             </Text>
 
             <TextInput

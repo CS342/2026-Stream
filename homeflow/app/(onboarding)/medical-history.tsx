@@ -1191,7 +1191,7 @@ export default function MedicalHistoryScreen() {
               All Confirmed
             </Text>
             <Text style={[styles.completeSubtitle, { color: colors.icon }]}>
-              Your health records have been reviewed. You're ready to continue.
+              Your health records have been reviewed. You&apos;re ready to continue.
             </Text>
             <ContinueButton
               title="Continue to Baseline Survey"
