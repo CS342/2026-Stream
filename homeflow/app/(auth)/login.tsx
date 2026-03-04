@@ -22,7 +22,7 @@ import {
   Pressable,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
@@ -56,6 +56,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [language, setLanguage] = useState<LanguageCode>('en');
   const [langPickerVisible, setLangPickerVisible] = useState(false);
+  const insets = useSafeAreaInsets();
 
   const selectedLang = LANGUAGES.find(l => l.code === language)!;
 
@@ -241,7 +242,7 @@ export default function LoginScreen() {
 
       {/* Language selector — rendered after KeyboardAvoidingView so it sits on top */}
       <TouchableOpacity
-        style={styles.langButton}
+        style={[styles.langButton, { top: insets.top + 8 }]}
         onPress={() => setLangPickerVisible(true)}
         activeOpacity={0.7}
       >
@@ -402,7 +403,6 @@ const styles = StyleSheet.create({
   },
   langButton: {
     position: 'absolute',
-    top: 14,
     right: 28,
     zIndex: 10,
     width: 44,
