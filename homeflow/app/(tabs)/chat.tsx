@@ -279,7 +279,7 @@ export default function ChatScreen() {
 
         <MessageInput
           theme={chatTheme}
-          placeholder="Ask about setup..."
+          placeholder="Ask about setup or recovery..."
           disabled={isAnimating}
           value={input}
           onChange={setInput}
