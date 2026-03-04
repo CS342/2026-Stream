@@ -18,24 +18,47 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useRouter, Href } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { signInAnonymously } from 'firebase/auth';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
-import { auth } from '@/lib/firebase';
+import { devSkipAuth } from '@/lib/dev-flags';
+import { notifyOnboardingComplete } from '@/hooks/use-onboarding-status';
+
+const LANGUAGES = [
+  { code: 'en', name: 'English',    flag: '🇺🇸' },
+  { code: 'es', name: 'Español',    flag: '🇪🇸' },
+  { code: 'zh', name: '中文',        flag: '🇨🇳' },
+  { code: 'fr', name: 'Français',   flag: '🇫🇷' },
+  { code: 'de', name: 'Deutsch',    flag: '🇩🇪' },
+  { code: 'pt', name: 'Português',  flag: '🇧🇷' },
+  { code: 'ar', name: 'العربية',    flag: '🇸🇦' },
+  { code: 'hi', name: 'हिन्दी',      flag: '🇮🇳' },
+  { code: 'ko', name: '한국어',      flag: '🇰🇷' },
+  { code: 'ja', name: '日本語',      flag: '🇯🇵' },
+] as const;
+
+type LanguageCode = typeof LANGUAGES[number]['code'];
 
 export default function LoginScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
+  const isDark = colorScheme === 'dark';
   const { signInWithEmail, signInWithApple, signInWithGoogle, sendPasswordResetEmail } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [language, setLanguage] = useState<LanguageCode>('en');
+  const [langPickerVisible, setLangPickerVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+
+  const selectedLang = LANGUAGES.find(l => l.code === language)!;
 
   const handleEmailLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -84,6 +107,12 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDevSkip = () => {
+    devSkipAuth();
+    notifyOnboardingComplete(); // Ensure onboarding status is fresh
+    router.replace('/(tabs)');
   };
 
   const handleGoogleLogin = async () => {
@@ -204,19 +233,56 @@ export default function LoginScreen() {
           </View>
 
           {__DEV__ && (
-            <TouchableOpacity
-              style={styles.devSkipButton}
-              onPress={async () => {
-                await signInAnonymously(auth);
-                router.replace('/(tabs)' as Href);
-              }}
-            >
-              <Text style={styles.devSkipText}>Skip Auth (Dev)</Text>
+            <TouchableOpacity style={styles.devSkipButton} onPress={handleDevSkip}>
+              <Text style={styles.devSkipText}>Dev — Skip Sign In</Text>
             </TouchableOpacity>
           )}
-
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Language selector — rendered after KeyboardAvoidingView so it sits on top */}
+      <TouchableOpacity
+        style={[styles.langButton, { top: insets.top + 8 }]}
+        onPress={() => setLangPickerVisible(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.langFlag}>{selectedLang.flag}</Text>
+      </TouchableOpacity>
+
+      {/* Language picker bottom sheet */}
+      <Modal
+        visible={langPickerVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLangPickerVisible(false)}
+      >
+        <Pressable
+          style={langStyles.backdrop}
+          onPress={() => setLangPickerVisible(false)}
+        >
+          <Pressable style={[langStyles.sheet, { backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF' }]}>
+            <View style={[langStyles.handle, { backgroundColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.12)' }]} />
+            <Text style={[langStyles.title, { color: colors.icon }]}>LANGUAGE</Text>
+            {LANGUAGES.map(lang => (
+              <TouchableOpacity
+                key={lang.code}
+                style={[langStyles.option, { borderBottomColor: colors.border }]}
+                onPress={() => {
+                  setLanguage(lang.code);
+                  setLangPickerVisible(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={langStyles.optionFlag}>{lang.flag}</Text>
+                <Text style={[langStyles.optionName, { color: colors.text }]}>{lang.name}</Text>
+                {language === lang.code && (
+                  <Text style={[langStyles.checkmark, { color: StanfordColors.cardinal }]}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -326,15 +392,74 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   devSkipButton: {
-    marginTop: 24,
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#34C759',
+    marginTop: Spacing.lg,
     alignItems: 'center',
+    paddingVertical: Spacing.sm,
   },
   devSkipText: {
-    color: '#fff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
+    color: '#FF9500',
+  },
+  langButton: {
+    position: 'absolute',
+    right: 28,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  langFlag: {
+    fontSize: 26,
+  },
+});
+
+const langStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 12,
+    paddingBottom: 40,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textAlign: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 20,
+  },
+  option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 14,
+  },
+  optionFlag: {
+    fontSize: 24,
+  },
+  optionName: {
+    fontSize: 17,
+    flex: 1,
+  },
+  checkmark: {
+    fontSize: 17,
+    fontWeight: '700',
   },
 });
