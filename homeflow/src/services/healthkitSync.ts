@@ -28,7 +28,6 @@ import { Platform } from "react-native";
 import * as Crypto from "expo-crypto";
 import {
   doc,
-  collection,
   getDoc,
   setDoc,
   writeBatch,
@@ -215,7 +214,7 @@ async function fetchHealthKitSamples(
 async function writeSamplesBatch(
   uid: string,
   metricType: MetricType,
-  entries: Array<{ id: string; data: FirestoreSampleData }>,
+  entries: { id: string; data: FirestoreSampleData }[],
 ): Promise<void> {
   for (let i = 0; i < entries.length; i += BATCH_SIZE) {
     const chunk = entries.slice(i, i + BATCH_SIZE);
@@ -317,7 +316,7 @@ export async function syncMetric(
     }
 
     // 3. Transform each sample into a { id, data } pair.
-    const entries: Array<{ id: string; data: FirestoreSampleData }> =
+    const entries: { id: string; data: FirestoreSampleData }[] =
       await Promise.all(
         hkSamples.map(async (sample) => {
           const id = await buildSampleId(metricType, sample);
