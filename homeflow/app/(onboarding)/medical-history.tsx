@@ -152,6 +152,11 @@ type EditableProcItem = {
   isBPH: boolean;
 };
 
+type EditableCondItem = {
+  id: string;
+  name: string;
+};
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function formatShortDate(dateStr: string | undefined): string {
@@ -199,6 +204,10 @@ export default function MedicalHistoryScreen() {
   const [editableProcs, setEditableProcs] = useState<EditableProcItem[]>([]);
   const [editingProcId, setEditingProcId] = useState<string | null>(null);
   const [editingProcValue, setEditingProcValue] = useState('');
+
+  const [otherConds, setOtherConds] = useState<EditableCondItem[]>([]);
+  const [editingCondId, setEditingCondId] = useState<string | null>(null);
+  const [editingCondValue, setEditingCondValue] = useState('');
 
   const stepFade = useRef(new Animated.Value(1)).current;
   const confirmFade = useRef(new Animated.Value(0)).current;
@@ -260,6 +269,10 @@ export default function MedicalHistoryScreen() {
       setEditableProcs(procItems);
       setEditingProcId(null);
       setEditingProcValue('');
+
+      setOtherConds([]);
+      setEditingCondId(null);
+      setEditingCondValue('');
 
       setReviewStep(0);
       setCorrectionsNeeded(new Set());
@@ -374,6 +387,10 @@ export default function MedicalHistoryScreen() {
           for (const cond of entry.value) conditions.push(cond.name);
         }
       }
+    }
+
+    for (const cond of otherConds) {
+      if (cond.name.trim()) conditions.push(cond.name.trim());
     }
 
     const demoSummary = [
@@ -892,30 +909,101 @@ export default function MedicalHistoryScreen() {
         ];
 
         return (
-          <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
-            <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
-              CONDITIONS FROM HEALTH RECORDS
-            </Text>
-            <View style={reviewStyles.medGroup}>
-              {allConditions.length > 0 ? (
-                allConditions.map((cond, ci) => (
-                  <View key={ci} style={reviewStyles.medItem}>
-                    <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
-                    <Text style={[reviewStyles.medName, { color: colors.text, flex: 1 }]}>
-                      {cond.name}
-                    </Text>
-                    <View style={reviewStyles.sourceBadge}>
-                      <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
+          <>
+            {/* Health-record conditions */}
+            <View style={[reviewStyles.card, { backgroundColor: sectionBg }]}>
+              <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
+                CONDITIONS FROM HEALTH RECORDS
+              </Text>
+              <View style={reviewStyles.medGroup}>
+                {allConditions.length > 0 ? (
+                  allConditions.map((cond, ci) => (
+                    <View key={ci} style={reviewStyles.medItem}>
+                      <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
+                      <Text style={[reviewStyles.medName, { color: colors.text, flex: 1 }]}>
+                        {cond.name}
+                      </Text>
+                      <View style={reviewStyles.sourceBadge}>
+                        <Text style={reviewStyles.sourceBadgeText}>Health Records</Text>
+                      </View>
                     </View>
-                  </View>
-                ))
-              ) : (
-                <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>
-                  No conditions found in health records
-                </Text>
-              )}
+                  ))
+                ) : (
+                  <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>
+                    No conditions found in health records
+                  </Text>
+                )}
+              </View>
             </View>
-          </View>
+
+            {/* User-added conditions */}
+            <View style={[reviewStyles.card, { backgroundColor: sectionBg, marginTop: 12 }]}>
+              <Text style={[reviewStyles.cardSectionTitle, { color: colors.icon }]}>
+                OTHER CONDITIONS
+              </Text>
+              <View style={reviewStyles.medGroup}>
+                {otherConds.length === 0 && (
+                  <Text style={[reviewStyles.noneFound, { color: colors.icon }]}>None</Text>
+                )}
+                {otherConds.map(item => (
+                  <View key={item.id} style={reviewStyles.medItem}>
+                    <Text style={[reviewStyles.medBullet, { color: StanfordColors.cardinal }]}>•</Text>
+                    {editingCondId === item.id ? (
+                      <TextInput
+                        value={editingCondValue}
+                        onChangeText={setEditingCondValue}
+                        onSubmitEditing={() => {
+                          const trimmed = editingCondValue.trim();
+                          if (trimmed) {
+                            setOtherConds(prev => prev.map(c =>
+                              c.id === item.id ? { ...c, name: trimmed } : c
+                            ));
+                          } else {
+                            setOtherConds(prev => prev.filter(c => c.id !== item.id));
+                          }
+                          setEditingCondId(null);
+                        }}
+                        returnKeyType="done"
+                        autoFocus
+                        placeholder="Condition name"
+                        placeholderTextColor={colors.icon}
+                        style={[reviewStyles.medEditInput, { color: colors.text }]}
+                      />
+                    ) : (
+                      <TouchableOpacity
+                        style={{ flex: 1 }}
+                        onPress={() => handleFieldDoubleTap(`cond_${item.id}`, () => {
+                          setEditingCondId(item.id);
+                          setEditingCondValue(item.name);
+                          setEditingMedId(null);
+                          setEditingProcId(null);
+                        })}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[reviewStyles.medName, { color: colors.text }]}>{item.name}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+                <TouchableOpacity
+                  style={reviewStyles.addMedButton}
+                  onPress={() => {
+                    const newId = `cond_custom_${Date.now()}`;
+                    setOtherConds(prev => [...prev, { id: newId, name: '' }]);
+                    setEditingCondId(newId);
+                    setEditingCondValue('');
+                    setEditingMedId(null);
+                    setEditingProcId(null);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[reviewStyles.addMedButtonText, { color: StanfordColors.cardinal }]}>
+                    + Add Condition
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </>
         );
       }
 
@@ -996,10 +1084,13 @@ export default function MedicalHistoryScreen() {
               found={cm.uroflowQmax.confidence !== 'none'}
             />
             <ClinicalRow
-              label="Mobility"
-              description="Functional mobility status"
-              value={cm.mobility.value}
-              found={cm.mobility.confidence !== 'none'}
+              label="Volume Voided"
+              description="Urine volume per void (mL)"
+              value={cm.volumeVoided.value?.value}
+              unit={cm.volumeVoided.value?.unit}
+              date={cm.volumeVoided.value?.date}
+              referenceRange={cm.volumeVoided.value?.referenceRange}
+              found={cm.volumeVoided.confidence !== 'none'}
             />
           </View>
         );
