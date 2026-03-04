@@ -15,6 +15,7 @@ import { useRouter, Href } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useAuth } from '@/hooks/use-auth';
+import { triggerTestNotification, requestNotificationPermissions } from '@/lib/services/notification-service';
 import {
   CONSENT_PROFILE_SUMMARY,
   DATA_PERMISSIONS_SUMMARY,
@@ -199,6 +200,61 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Dev Tools — only in development builds */}
+        {__DEV__ && (
+          <View style={[styles.card, isDark && styles.cardDark]}>
+            <View style={styles.cardHeader}>
+              <IconSymbol name="wrench.fill" size={16} color="#AF52DE" />
+              <Text style={[styles.cardLabel, { color: '#AF52DE' }]}>Dev Tools</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.devButton, { backgroundColor: isDark ? '#2A1A36' : '#F5EEFF' }]}
+              onPress={async () => {
+                try {
+                  const granted = await requestNotificationPermissions();
+                  if (!granted) {
+                    Alert.alert('Permission Denied', 'Enable notifications in Settings → HomeFlow → Notifications.');
+                    return;
+                  }
+                  await triggerTestNotification('healthkit');
+                  Alert.alert('Sent', 'HealthKit reminder notification fired. Background the app to see the banner.');
+                } catch (e: any) {
+                  Alert.alert('Error', e?.message ?? 'Failed to send notification.');
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <IconSymbol name="heart.fill" size={16} color="#AF52DE" />
+              <Text style={[styles.devButtonText, { color: '#AF52DE' }]}>
+                Test HealthKit Reminder
+              </Text>
+            </TouchableOpacity>
+            <View style={[styles.rowDivider, isDark && styles.rowDividerDark, { marginVertical: 8 }]} />
+            <TouchableOpacity
+              style={[styles.devButton, { backgroundColor: isDark ? '#2A1A36' : '#F5EEFF' }]}
+              onPress={async () => {
+                try {
+                  const granted = await requestNotificationPermissions();
+                  if (!granted) {
+                    Alert.alert('Permission Denied', 'Enable notifications in Settings → HomeFlow → Notifications.');
+                    return;
+                  }
+                  await triggerTestNotification('throne');
+                  Alert.alert('Sent', 'Throne reminder notification fired. Background the app to see the banner.');
+                } catch (e: any) {
+                  Alert.alert('Error', e?.message ?? 'Failed to send notification.');
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <IconSymbol name="drop.fill" size={16} color="#AF52DE" />
+              <Text style={[styles.devButtonText, { color: '#AF52DE' }]}>
+                Test Throne Reminder
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Sign Out */}
         <TouchableOpacity
           style={[styles.signOutButton, isDark && styles.signOutButtonDark]}
@@ -381,6 +437,20 @@ const styles = StyleSheet.create({
   },
   placeholderTextDark: {
     color: '#6B7394',
+  },
+
+  // Dev tools
+  devButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  devButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 
   // Sign out

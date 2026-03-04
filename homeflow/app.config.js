@@ -66,6 +66,13 @@ module.exports = {
           "usageDescription": "HomeFlow would like to access your clinical health records to import medications, lab results, and conditions — reducing manual data entry."
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#8C1515"
+        }
+      ],
       "expo-apple-authentication",
       [
         "@react-native-google-signin/google-signin",

@@ -27,6 +27,7 @@ import {
   areClinicalRecordsAvailable,
   requestClinicalPermissions,
 } from '@/lib/services/healthkit';
+import { requestNotificationPermissions } from '@/lib/services/notification-service';
 import {
   OnboardingProgressBar,
   PermissionCard,
@@ -136,6 +137,9 @@ export default function PermissionsScreen() {
   const handleContinue = async () => {
     setIsLoading(true);
     try {
+      // Request notification permissions alongside health permissions
+      await requestNotificationPermissions();
+
       await OnboardingService.updateData({
         permissions: {
           healthKit: healthKitStatus as 'granted' | 'denied' | 'not_determined',
