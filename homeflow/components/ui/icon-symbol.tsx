@@ -46,6 +46,14 @@ const MAPPING = {
 
   // Documents
   'doc.text.fill': 'description',
+  'arrow.down.doc.fill': 'file-download',
+
+  // Editing
+  'pencil': 'edit',
+  'pencil.tip': 'create',
+  'keyboard': 'keyboard',
+  'checklist': 'checklist',
+  'chevron.left': 'chevron-left',
 
   // Health
   'moon.fill': 'nightlight',

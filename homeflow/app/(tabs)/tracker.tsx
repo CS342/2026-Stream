@@ -261,7 +261,7 @@ export default function TrackerScreen() {
       </View>
 
       <Text style={[styles.subtitle, { color: colors.icon }]}>
-        Track your symptoms to monitor how you're feeling
+        Track your symptoms to monitor how you&apos;re feeling
       </Text>
 
       {/* ── Symptom categories ── */}
