@@ -75,7 +75,7 @@ function extractAttachment(
   if (!fhirResource) return null;
 
   const content = fhirResource['content'] as
-    | Array<{ attachment?: Record<string, unknown> }>
+    | { attachment?: Record<string, unknown> }[]
     | undefined;
 
   if (!Array.isArray(content) || content.length === 0) return null;

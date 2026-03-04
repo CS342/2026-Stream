@@ -10,6 +10,7 @@ import { Redirect, Href } from 'expo-router';
 import { useOnboardingStatus } from '@/hooks/use-onboarding-status';
 import { useAuth } from '@/hooks/use-auth';
 import { LoadingScreen } from '@/components/ui/loading-screen';
+import { isDevAuthSkipped } from '@/lib/dev-flags';
 
 export default function RootIndex() {
   const onboardingComplete = useOnboardingStatus();
@@ -23,15 +24,8 @@ export default function RootIndex() {
     return <Redirect href={'/(onboarding)' as Href} />;
   }
 
-  // Auth is handled during onboarding (ACCOUNT step).
-  // If onboarding is complete but user isn't authenticated (dev skip),
-  // still allow access to tabs.
-  if (!isAuthenticated) {
-    // If the user somehow got past onboarding without auth and we're in prod,
-    // send them to the auth flow as a fallback
-    if (!__DEV__) {
-      return <Redirect href={'/(auth)/login' as Href} />;
-    }
+  if (!isAuthenticated && !isDevAuthSkipped()) {
+    return <Redirect href={'/(auth)/login' as Href} />;
   }
 
   return <Redirect href="/(tabs)" />;
