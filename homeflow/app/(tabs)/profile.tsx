@@ -44,6 +44,7 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             await signOut();
+            router.replace('/(auth)/login' as Href);
           } catch (error: any) {
             Alert.alert('Error', error?.message || 'Failed to sign out.');
           }
