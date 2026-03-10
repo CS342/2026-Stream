@@ -57,6 +57,10 @@ const METRIC_CONFIG = {
     identifier: "HKQuantityTypeIdentifierStepCount" as const,
     unit: "count",
   },
+  heartRateVariabilitySDNN: {
+    identifier: "HKQuantityTypeIdentifierHeartRateVariabilitySDNN" as const,
+    unit: "ms",
+  },
 } as const;
 
 export type MetricType = keyof typeof METRIC_CONFIG;
