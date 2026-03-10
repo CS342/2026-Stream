@@ -32,7 +32,7 @@ import { router } from 'expo-router';
 import { useAppTheme } from '@/lib/theme/ThemeContext';
 import { FontSize, FontWeight } from '@/lib/theme/typography';
 import { useAuth } from '@/lib/auth/auth-context';
-import { useThroneUserId } from '@/hooks/use-throne-user-id';
+import { DEV_FIREBASE_UID } from '@/lib/constants';
 import {
   fetchSessions,
   fetchMetricsBatch,
@@ -543,8 +543,7 @@ export default function VoidingScreen() {
   const { theme } = useAppTheme();
   const { isDark, colors: c } = theme;
   const { user } = useAuth();
-  const uid = user?.id ?? null;
-  const { throneUserId } = useThroneUserId(uid);
+  const uid = user?.id ?? (__DEV__ ? DEV_FIREBASE_UID : null);
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [range,          setRange]          = useState<RangeKey>('1w');
@@ -595,14 +594,15 @@ export default function VoidingScreen() {
     async function load() {
       try {
         const startDate = new Date(Date.now() - NINETY_DAYS_MS);
-        const data = await fetchSessions({ startDate, userId: throneUserId ?? undefined });
+        if (!uid) return;
+        const data = await fetchSessions(uid, { startDate });
         if (cancelled) return;
         setAllSessions(data);
 
         // Batch-fetch metrics for all sessions
         if (data.length > 0) {
           const ids = data.map(s => s.id);
-          const metrics = await fetchMetricsBatch(ids);
+          const metrics = await fetchMetricsBatch(uid, ids);
           if (cancelled) return;
 
           // Build a Map: sessionId → ThroneMetric[]
@@ -624,7 +624,7 @@ export default function VoidingScreen() {
 
     load();
     return () => { cancelled = true; };
-  }, [refreshKey, throneUserId]);
+  }, [refreshKey, uid]);
 
   // ─── Pull-to-refresh ──────────────────────────────────────────────────────
   const handleRefresh = useCallback(() => {

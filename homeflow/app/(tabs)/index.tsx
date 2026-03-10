@@ -25,14 +25,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { STORAGE_KEYS, DEV_FIREBASE_UID } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
 import { notifyOnboardingComplete } from '@/hooks/use-onboarding-status';
 import { useSurgeryDate } from '@/hooks/use-surgery-date';
 import { useWatchUsage } from '@/hooks/use-watch-usage';
 import { SurgeryCompleteModal } from '@/components/home/SurgeryCompleteModal';
 import { useAuth } from '@/lib/auth/auth-context';
-import { useThroneUserId } from '@/hooks/use-throne-user-id';
 import { useAppTheme } from '@/lib/theme/ThemeContext';
 import { FontSize, FontWeight } from '@/lib/theme/typography';
 import { useHealthSummary } from '@/hooks/use-health-summary';
@@ -417,8 +418,7 @@ export default function HomeScreen() {
   const { theme } = useAppTheme();
   const { colors: t } = theme;
   const { user } = useAuth();
-  const uid = user?.id ?? null;
-  const { throneUserId } = useThroneUserId(uid);
+  const uid = user?.id ?? (__DEV__ ? DEV_FIREBASE_UID : null);
   const surgery = useSurgeryDate();
   const watch = useWatchUsage();
 
@@ -426,6 +426,21 @@ export default function HomeScreen() {
   const [showDevSheet, setShowDevSheet] = useState(false);
   const [watchDismissed, setWatchDismissed] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // ─── Auto-show Surgery Complete modal (once, when surgery date first passes) ─
+  useEffect(() => {
+    if (surgery.isLoading || surgery.isPlaceholder || !surgery.hasPassed) return;
+
+    async function maybeShowModal() {
+      const already = await AsyncStorage.getItem(STORAGE_KEYS.SURGERY_MODAL_SHOWN);
+      if (!already) {
+        await AsyncStorage.setItem(STORAGE_KEYS.SURGERY_MODAL_SHOWN, 'true');
+        setShowSurgeryModal(true);
+      }
+    }
+
+    maybeShowModal();
+  }, [surgery.isLoading, surgery.isPlaceholder, surgery.hasPassed]);
 
   // ─── Throne data ───────────────────────────────────────────────────────────
 
@@ -440,11 +455,12 @@ export default function HomeScreen() {
       setThroneLoading(true);
       try {
         const since = new Date(Date.now() - WEEK_MS);
-        const raw: ThroneSession[] = await fetchSessions({ startDate: since, userId: throneUserId ?? undefined });
+        if (!uid) return;
+        const raw: ThroneSession[] = await fetchSessions(uid, { startDate: since });
         if (cancelled) return;
 
         const ids = raw.map((s) => s.id);
-        const allMetrics: ThroneMetric[] = await fetchMetricsBatch(ids);
+        const allMetrics: ThroneMetric[] = await fetchMetricsBatch(uid, ids);
         if (cancelled) return;
 
         // Build sessionId → ThroneMetric[] map (same as voiding.tsx)
@@ -469,7 +485,7 @@ export default function HomeScreen() {
 
     loadThroneData();
     return () => { cancelled = true; };
-  }, [refreshKey, throneUserId]);
+  }, [refreshKey, uid]);
 
   const weekSessions = useMemo(
     () => filterByRange(sessions, '1w'),
@@ -597,13 +613,6 @@ export default function HomeScreen() {
           <View style={styles.cardHeader}>
             <IconSymbol name="calendar.badge.clock" size={17} color={t.accent} />
             <Text style={[styles.cardLabel, { color: t.textSecondary }]}>Surgery date</Text>
-            {surgery.isPlaceholder && __DEV__ && (
-              <View style={[styles.placeholderBadge, { backgroundColor: t.secondaryFill }]}>
-                <Text style={[styles.placeholderBadgeText, { color: t.textTertiary }]}>
-                  Placeholder
-                </Text>
-              </View>
-            )}
           </View>
           {surgery.isLoading ? (
             <Text style={[styles.cardValue, { color: t.textPrimary }]}>Loading...</Text>
@@ -632,13 +641,6 @@ export default function HomeScreen() {
             <View style={styles.cardHeader}>
               <IconSymbol name="calendar" size={17} color={t.semanticSuccess} />
               <Text style={[styles.cardLabel, { color: t.textSecondary }]}>Study timeline</Text>
-              {surgery.isPlaceholder && __DEV__ && (
-                <View style={[styles.placeholderBadge, { backgroundColor: t.secondaryFill }]}>
-                  <Text style={[styles.placeholderBadgeText, { color: t.textTertiary }]}>
-                    Placeholder
-                  </Text>
-                </View>
-              )}
             </View>
             <View style={styles.timelineRow}>
               <View style={styles.timelineItem}>
@@ -1013,8 +1015,6 @@ const styles = StyleSheet.create({
   },
   cardValue: { fontSize: FontSize.titleMedium, fontWeight: FontWeight.bold, letterSpacing: 0.35 },
   cardSubtext: { fontSize: FontSize.subhead, fontWeight: FontWeight.regular, marginTop: 4 },
-  placeholderBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginLeft: 'auto' },
-  placeholderBadgeText: { fontSize: FontSize.micro, fontWeight: FontWeight.medium },
   timelineRow: { flexDirection: 'row', alignItems: 'center' },
   timelineItem: { flex: 1 },
   timelineLabel: { fontSize: FontSize.footnote, fontWeight: FontWeight.regular, marginBottom: 2 },

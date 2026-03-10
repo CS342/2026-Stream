@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { OnboardingStep } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
-import { OnboardingProgressBar, ContinueButton, DevToolBar } from '@/components/onboarding';
+import { OnboardingProgressBar, ContinueButton } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 // Lazy-load so the screen still renders even if the package isn't available
@@ -79,17 +79,23 @@ export default function OnboardingChatScreen() {
   };
 
   const handleContinue = async () => {
+    const dateStr = surgerySched === 'yes'
+      ? surgeryDate.toISOString().split('T')[0]
+      : undefined;
+
     await OnboardingService.updateData({
       eligibility: {
         hasIPhone: true,
         hasBPHDiagnosis: bphDiagnosis === 'yes',
         consideringSurgery: surgerySched === 'yes',
         isEligible: canContinue,
-        surgeryDate: surgerySched === 'yes'
-          ? surgeryDate.toISOString().split('T')[0]
-          : undefined,
+        surgeryDate: dateStr,
       },
     });
+
+    // Surgery date is persisted locally in OnboardingService (AsyncStorage).
+    // It will be flushed to Firestore after the user logs in (account.tsx).
+
     await OnboardingService.goToStep(OnboardingStep.CONSENT);
     router.push('/(onboarding)/consent' as Href);
   };
@@ -250,7 +256,6 @@ export default function OnboardingChatScreen() {
         />
       </View>
 
-      <DevToolBar currentStep={OnboardingStep.CHAT} onContinue={handleContinue} />
     </SafeAreaView>
   );
 }
