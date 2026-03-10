@@ -32,7 +32,6 @@ import { useSurgeryDate } from '@/hooks/use-surgery-date';
 import { useWatchUsage } from '@/hooks/use-watch-usage';
 import { SurgeryCompleteModal } from '@/components/home/SurgeryCompleteModal';
 import { useAppTheme } from '@/lib/theme/ThemeContext';
-import { useAuth } from '@/lib/auth/auth-context';
 import { useHealthSummary } from '@/hooks/use-health-summary';
 import {
   fetchSessions,
@@ -47,7 +46,6 @@ import {
 import {
   filterByRange,
   bucketSeries,
-  computeSummaryStats,
   type BucketPoint,
 } from '@/src/data/voidingAggregation';
 import {
@@ -186,7 +184,6 @@ function ActivityRings({
   const MIDDLE = OUTER - STROKE * 2 - GAP * 2;
   const INNER = MIDDLE - STROKE * 2 - GAP * 2;
 
-  const outerCenter = OUTER / 2;
   const middleOffset = STROKE + GAP;
   const innerOffset = STROKE * 2 + GAP * 2;
 
@@ -415,8 +412,7 @@ function daysUntil(dateStr: string): string {
 
 export default function HomeScreen() {
   const { theme } = useAppTheme();
-  const { isDark, colors: t } = theme;
-  const { user } = useAuth();
+  const { colors: t } = theme;
   const surgery = useSurgeryDate();
   const watch = useWatchUsage();
 
@@ -647,7 +643,7 @@ export default function HomeScreen() {
                   Apple Health
                 </Text>
                 <Text style={[styles.moduleSubtitle, { color: t.textTertiary }]}>
-                  Today's summary
+                  {"Today's summary"}
                 </Text>
               </View>
             </View>
