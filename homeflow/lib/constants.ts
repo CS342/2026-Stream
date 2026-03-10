@@ -85,7 +85,7 @@ export const CONSENT_VERSION = '1.0.0';
  * Dev-only Firebase UID for testing Firestore queries without Apple Sign-In.
  * Used as uid fallback when DEV_BYPASS_AUTH is active and no user is signed in.
  */
-export const DEV_FIREBASE_UID = 'apple|002014.cccd386699574a369cfc75378d3770da.2143';
+export const DEV_FIREBASE_UID = 'REDACTED_UID';
 
 /**
  * Study information
