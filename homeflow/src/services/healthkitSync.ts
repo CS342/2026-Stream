@@ -3,17 +3,17 @@
  *
  * Data model
  * ──────────
- *   users/{uid}/healthkit/{metricType}/samples/{sampleId}
+ *   users/{uid}/hk_{metricType}/{sampleId}
  *     value, unit, startDate, endDate, sourceName?, deviceName?,
  *     metadata?, createdAt, updatedAt
  *
- *   users/{uid}/healthkitSync/{metricType}
+ *   users/{uid}/hk_sync/{metricType}
  *     lastSyncedAt, lastRunAt, lastStatus, lastError?
  *
  * Idempotency
  * ───────────
  *   Each sample's Firestore doc ID is the HealthKit UUID, which is stable
- *   across retries.  Re-syncing the same sample overwrites the same doc
+ *   across retries. Re-syncing the same sample overwrites the same doc
  *   (no duplicates).
  *
  * Incremental sync
@@ -74,7 +74,6 @@ interface SyncState {
   lastError?: string;
 }
 
-/** Shape written to Firestore for each sample. */
 interface FirestoreSampleData {
   value: number;
   unit: string;
@@ -87,7 +86,6 @@ interface FirestoreSampleData {
   updatedAt: FieldValue;
 }
 
-/** Result returned by syncMetric(). */
 export interface SyncMetricResult {
   ok: boolean;
   written: number;
@@ -95,7 +93,6 @@ export interface SyncMetricResult {
   error?: string;
 }
 
-/** Result returned by syncAllHealthKit(). */
 export interface SyncAllResult {
   ok: boolean;
   results: Record<MetricType, SyncMetricResult>;
@@ -103,36 +100,18 @@ export interface SyncAllResult {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-/** Overlap window applied to the start of every incremental query.
- *  Catches samples that were recorded slightly before the last sync boundary
- *  due to device clock drift or delayed HK delivery. */
-const OVERLAP_WINDOW_MS = 5 * 60 * 1_000; // 5 minutes
-
-/** How far back to look on the very first sync for a metric. */
+const OVERLAP_WINDOW_MS = 5 * 60 * 1_000;
 const DEFAULT_LOOKBACK_DAYS = 30;
-
-/** Maximum docs per Firestore batch (hard limit is 500; leave headroom). */
 const BATCH_SIZE = 400;
 
 // ── buildSampleId ─────────────────────────────────────────────────────────────
 
-/**
- * Returns a stable Firestore document ID for a HealthKit sample.
- *
- * Prefers the HK UUID (always present in kingstinct v13).  Falls back
- * to a SHA-1 digest of key fields to cover any edge case where UUID
- * is empty (shouldn't happen in practice).
- */
 async function buildSampleId(
   metricType: MetricType,
   sample: QuantitySample,
 ): Promise<string> {
-  if (sample.uuid) {
-    // HealthKit UUIDs are lowercase hex + hyphens — safe as Firestore doc IDs.
-    return sample.uuid;
-  }
+  if (sample.uuid) return sample.uuid;
 
-  // Deterministic fallback: SHA-1 of (metricType|startISO|endISO|value|unit|source)
   const toDate = (d: unknown): Date =>
     d instanceof Date ? d : new Date(String(d));
 
@@ -151,10 +130,6 @@ async function buildSampleId(
 
 // ── toFirestoreSample ─────────────────────────────────────────────────────────
 
-/**
- * Converts a raw HealthKit QuantitySample into the shape stored in Firestore.
- * Omits createdAt/updatedAt — those are added at the write site.
- */
 function toFirestoreSample(
   metricType: MetricType,
   sample: QuantitySample,
@@ -184,12 +159,6 @@ function toFirestoreSample(
 
 // ── fetchHealthKitSamples ─────────────────────────────────────────────────────
 
-/**
- * Queries HealthKit for samples of the given metric type starting from
- * sinceDate (minus the overlap window).
- *
- * Returns an empty array on non-iOS platforms.
- */
 async function fetchHealthKitSamples(
   metricType: MetricType,
   sinceDate: Date,
@@ -197,26 +166,18 @@ async function fetchHealthKitSamples(
   if (Platform.OS !== "ios") return [];
 
   const config = METRIC_CONFIG[metricType];
-
-  // Subtract the overlap window so we don't miss samples at the boundary.
   const startDate = new Date(sinceDate.getTime() - OVERLAP_WINDOW_MS);
   const endDate = new Date();
 
   return queryQuantitySamples(config.identifier as any, {
-    limit: 0, // 0 = no limit — fetch every sample in the window
+    limit: 0,
     unit: config.unit,
-    filter: {
-      date: { startDate, endDate },
-    },
+    filter: { date: { startDate, endDate } },
   });
 }
 
 // ── writeSamplesBatch ─────────────────────────────────────────────────────────
 
-/**
- * Writes sample documents to Firestore in batches of BATCH_SIZE.
- * Uses set() (overwrite) so repeated runs are idempotent given a stable doc ID.
- */
 async function writeSamplesBatch(
   uid: string,
   metricType: MetricType,
@@ -225,13 +186,11 @@ async function writeSamplesBatch(
   for (let i = 0; i < entries.length; i += BATCH_SIZE) {
     const chunk = entries.slice(i, i + BATCH_SIZE);
     const batch = writeBatch(db);
-    const basePath = `users/${uid}/healthkit/${metricType}/samples`;
-    console.log(`[HealthKit] Writing ${chunk.length} docs → ${basePath}/`);
+    const collectionPath = `users/${uid}/hk_${metricType}`;
+    console.log(`[HealthKit] Writing ${chunk.length} docs → ${collectionPath}/`);
 
     for (const { id, data } of chunk) {
-      const ref = doc(db, `${basePath}/${id}`);
-      // Full overwrite — idempotency is guaranteed by the stable doc ID.
-      batch.set(ref, data);
+      batch.set(doc(db, `${collectionPath}/${id}`), data);
     }
 
     await batch.commit();
@@ -241,15 +200,11 @@ async function writeSamplesBatch(
 
 // ── Sync state helpers ────────────────────────────────────────────────────────
 
-/**
- * Reads the last successful sync timestamp for a metric.
- * Returns null if this metric has never been synced.
- */
 export async function getLastSync(
   uid: string,
-  metricType: MetricType,
+  metricType: string,
 ): Promise<Date | null> {
-  const ref = doc(db, `users/${uid}/healthkitSync/${metricType}`);
+  const ref = doc(db, `users/${uid}/hk_sync/${metricType}`);
   const snap = await getDoc(ref);
   if (!snap.exists()) return null;
 
@@ -257,20 +212,16 @@ export async function getLastSync(
   return state.lastSyncedAt?.toDate() ?? null;
 }
 
-/**
- * Merges a partial sync-state update into Firestore.
- * Always stamps lastRunAt with the server timestamp.
- */
 export async function setSyncState(
   uid: string,
-  metricType: MetricType,
+  metricType: string,
   patch: {
     lastSyncedAt?: Timestamp;
     lastStatus: "ok" | "error";
     lastError?: string;
   },
 ): Promise<void> {
-  const path = `users/${uid}/healthkitSync/${metricType}`;
+  const path = `users/${uid}/hk_sync/${metricType}`;
   console.log(`[HealthKit] setSyncState → ${path} status=${patch.lastStatus}`);
   const ref = doc(db, path);
   await setDoc(
@@ -287,41 +238,26 @@ export async function setSyncState(
 
 // ── syncMetric ────────────────────────────────────────────────────────────────
 
-/**
- * Syncs a single HealthKit metric for the signed-in user.
- *
- * @param metricType  One of the keys in METRIC_CONFIG.
- * @param options.dryRun  If true, fetches and transforms samples but skips
- *                        all Firestore writes (useful for testing).
- */
 export async function syncMetric(
   metricType: MetricType,
   options?: { dryRun?: boolean },
 ): Promise<SyncMetricResult> {
   const uid = getAuth().currentUser?.uid;
   if (!uid) {
-    return {
-      ok: false,
-      written: 0,
-      skipped: 0,
-      error: "no-auth: user is not signed in",
-    };
+    return { ok: false, written: 0, skipped: 0, error: "no-auth: user is not signed in" };
   }
 
   try {
-    // 1. Determine the time window for this incremental run.
     const lastSync = await getLastSync(uid, metricType);
     const sinceDate =
       lastSync ??
       new Date(Date.now() - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60 * 1_000);
 
-    // 2. Pull samples from HealthKit.
     const hkSamples = await fetchHealthKitSamples(metricType, sinceDate);
     if (hkSamples.length === 0) {
       return { ok: true, written: 0, skipped: 0 };
     }
 
-    // 3. Transform each sample into a { id, data } pair.
     const entries: { id: string; data: FirestoreSampleData }[] =
       await Promise.all(
         hkSamples.map(async (sample) => {
@@ -336,10 +272,8 @@ export async function syncMetric(
       );
 
     if (!options?.dryRun) {
-      // 4. Write to Firestore in batches.
       await writeSamplesBatch(uid, metricType, entries);
 
-      // 5. Advance lastSyncedAt to the maximum endDate in this batch.
       const toDate = (d: unknown): Date =>
         d instanceof Date ? d : new Date(String(d));
 
@@ -357,29 +291,16 @@ export async function syncMetric(
     return { ok: true, written: entries.length, skipped: 0 };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-
-    // Best-effort: record the error in sync state so it's visible in Firestore.
     await setSyncState(uid, metricType, {
       lastStatus: "error",
       lastError: message,
-    }).catch(() => {
-      // Don't let the state-write failure shadow the original error.
-    });
-
+    }).catch(() => {});
     return { ok: false, written: 0, skipped: 0, error: message };
   }
 }
 
 // ── syncAllHealthKit ──────────────────────────────────────────────────────────
 
-/**
- * Syncs all configured HealthKit metrics for the signed-in user.
- *
- * Metrics are processed sequentially to avoid hammering HealthKit with
- * simultaneous queries, which can cause spurious empty results.
- *
- * Returns { ok: true } only if every metric sync succeeded.
- */
 export async function syncAllHealthKit(): Promise<SyncAllResult> {
   const metricTypes = Object.keys(METRIC_CONFIG) as MetricType[];
   const results = {} as Record<MetricType, SyncMetricResult>;
@@ -398,7 +319,6 @@ export async function syncAllHealthKit(): Promise<SyncAllResult> {
 const SLEEP_ANALYSIS_IDENTIFIER = "HKCategoryTypeIdentifierSleepAnalysis" as const;
 const SLEEP_SYNC_KEY = "sleepAnalysis";
 
-/** Shape written to Firestore for each sleep sample. */
 interface FirestoreSleepSampleData {
   stage: string;
   stageValue: number;
@@ -412,17 +332,12 @@ interface FirestoreSleepSampleData {
   updatedAt: FieldValue;
 }
 
-/** Result returned by syncSleep(). */
 export interface SyncSleepResult {
   ok: boolean;
   written: number;
   error?: string;
 }
 
-/**
- * Builds a stable Firestore doc ID for a sleep category sample.
- * Prefers the HK UUID, falls back to SHA-1 of key fields.
- */
 async function buildSleepSampleId(sample: {
   uuid?: string;
   startDate: Date | string;
@@ -454,11 +369,8 @@ async function buildSleepSampleId(sample: {
 /**
  * Syncs sleep analysis samples from HealthKit to Firestore.
  *
- * Firestore path: users/{uid}/healthkit/sleepAnalysis/samples/{sampleId}
- * Sync state:     users/{uid}/healthkitSync/sleepAnalysis
- *
- * Each sample doc stores the stage, night date, duration, and timestamps.
- * Re-syncing the same sample is idempotent (stable doc ID from HK UUID).
+ * Firestore path: users/{uid}/hk_sleepAnalysis/{sampleId}
+ * Sync state:     users/{uid}/hk_sync/sleepAnalysis
  */
 export async function syncSleep(
   options?: { dryRun?: boolean },
@@ -471,7 +383,6 @@ export async function syncSleep(
   }
 
   try {
-    // 1. Determine incremental window.
     const lastSync = await getLastSync(uid, SLEEP_SYNC_KEY);
     const sinceDate =
       lastSync ??
@@ -480,7 +391,6 @@ export async function syncSleep(
     const startDate = new Date(sinceDate.getTime() - OVERLAP_WINDOW_MS);
     const endDate = new Date();
 
-    // 2. Pull sleep category samples from HealthKit.
     const rawSamples = await queryCategorySamples(SLEEP_ANALYSIS_IDENTIFIER as any, {
       limit: 0,
       filter: { date: { startDate, endDate } },
@@ -490,7 +400,6 @@ export async function syncSleep(
       return { ok: true, written: 0 };
     }
 
-    // 3. Transform each sample.
     const toDate = (d: unknown): Date =>
       d instanceof Date ? d : new Date(String(d));
 
@@ -522,8 +431,7 @@ export async function syncSleep(
       );
 
     if (!options?.dryRun) {
-      // 4. Write in batches.
-      const basePath = `users/${uid}/healthkit/${SLEEP_SYNC_KEY}/samples`;
+      const basePath = `users/${uid}/hk_${SLEEP_SYNC_KEY}`;
       console.log(`[HealthKit] Writing ${entries.length} sleep samples → ${basePath}/`);
 
       for (let i = 0; i < entries.length; i += BATCH_SIZE) {
@@ -536,7 +444,6 @@ export async function syncSleep(
         console.log(`[HealthKit] Sleep batch committed (${chunk.length} docs)`);
       }
 
-      // 5. Advance sync cursor.
       const maxEndDate = rawSamples.reduce<Date>((max, s) => {
         const end = toDate((s as any).endDate);
         return end > max ? end : max;
@@ -598,10 +505,7 @@ export async function bootstrapHealthKitSync(): Promise<void> {
     }
 
     if (fhirResult.ok) {
-      console.log(
-        "[HealthKit] bootstrapHealthKitSync: FHIR prefill synced OK",
-        fhirResult.sourceRecordCounts,
-      );
+      console.log("[HealthKit] bootstrapHealthKitSync: FHIR prefill synced OK", fhirResult.sourceRecordCounts);
     } else {
       console.warn("[HealthKit] bootstrapHealthKitSync: FHIR prefill sync error:", fhirResult.error);
     }

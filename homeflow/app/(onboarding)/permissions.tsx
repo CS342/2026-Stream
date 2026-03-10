@@ -197,11 +197,6 @@ export default function PermissionsScreen() {
     }
   };
 
-  const handleDevContinue = async () => {
-    await OnboardingService.goToStep(OnboardingStep.HEALTH_DATA_TEST);
-    router.push('/(onboarding)/health-data-test' as Href);
-  };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
