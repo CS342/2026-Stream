@@ -27,7 +27,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 let DateTimePicker: any = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  DateTimePicker = require('react-native-ui-datepicker').DateTimePicker;
+  DateTimePicker = require('react-native-ui-datepicker').default;
 } catch {
   // noop – graceful degradation below
 }
@@ -85,6 +85,9 @@ export default function OnboardingChatScreen() {
         hasBPHDiagnosis: bphDiagnosis === 'yes',
         consideringSurgery: surgerySched === 'yes',
         isEligible: canContinue,
+        surgeryDate: surgerySched === 'yes'
+          ? surgeryDate.toISOString().split('T')[0]
+          : undefined,
       },
     });
     await OnboardingService.goToStep(OnboardingStep.CONSENT);
@@ -197,18 +200,35 @@ export default function OnboardingChatScreen() {
                   <DateTimePicker
                     mode="single"
                     date={surgeryDate}
-                    onChange={({ date }: { date: Date }) => {
+                    onChange={({ date }: { date: any }) => {
                       if (date) {
-                        setSurgeryDate(date);
+                        // react-native-ui-datepicker returns a Dayjs object,
+                        // not a native Date. Convert via valueOf() (epoch ms).
+                        const nativeDate =
+                          date instanceof Date
+                            ? date
+                            : new Date(typeof date.valueOf === 'function' ? date.valueOf() : date);
+                        setSurgeryDate(nativeDate);
                         setShowDatePicker(false);
                       }
                     }}
-                    selectedItemColor={StanfordColors.cardinal}
-                    headerButtonColor={StanfordColors.cardinal}
-                    calendarTextStyle={{ color: colors.text }}
-                    headerTextStyle={{ color: colors.text }}
-                    weekDaysTextStyle={{ color: colors.icon }}
-                    todayTextStyle={{ color: StanfordColors.cardinal }}
+                    styles={{
+                      // Day grid
+                      day_label:            { color: colors.text },
+                      outside_label:        { color: colors.icon },
+                      disabled_label:       { color: colors.icon, opacity: 0.35 },
+                      // Weekday header row
+                      weekday_label:        { color: colors.icon },
+                      // Month / year selectors in header
+                      month_selector_label: { color: colors.text, fontWeight: '600' },
+                      year_selector_label:  { color: colors.text, fontWeight: '600' },
+                      // Today highlight (unfilled ring)
+                      today:                { borderWidth: 1, borderColor: StanfordColors.cardinal, borderRadius: 999 },
+                      today_label:          { color: StanfordColors.cardinal },
+                      // Selected day — filled cardinal circle
+                      selected:             { backgroundColor: StanfordColors.cardinal, borderRadius: 999 },
+                      selected_label:       { color: '#FFFFFF', fontWeight: '600' },
+                    }}
                   />
                 ) : (
                   <Text style={[styles.pickerFallback, { color: colors.icon }]}>
