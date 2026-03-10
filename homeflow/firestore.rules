@@ -3,17 +3,47 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 3, 14);
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    // Returns the caller's Throne-internal user ID from their profile doc.
+    // Returns null if the profile doesn't exist or the field isn't set.
+    function callerThroneUserId() {
+      let profile = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return profile.data.get('throneUserId', null);
+    }
+
+    // ── User profiles ─────────────────────────────────────────────────────────
+
+    match /users/{uid} {
+      // Users can only read and write their own profile.
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── Throne sessions ───────────────────────────────────────────────────────
+
+    match /sessions/{sessionId} {
+      // A user may only read sessions whose Throne userId matches theirs.
+      // Writes come exclusively from the Cloud Function (Admin SDK bypasses rules).
+      allow read: if request.auth != null
+        && callerThroneUserId() != null
+        && resource.data.userId == callerThroneUserId();
+      allow write: if false;
+    }
+
+    // ── Throne metrics ────────────────────────────────────────────────────────
+
+    match /metrics/{metricId} {
+      // Metrics are fetched only by sessionId, which callers can only know
+      // from their own sessions query (guarded above). Require authentication.
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // ── Throne sync state ─────────────────────────────────────────────────────
+
+    match /throneSync/{studyId} {
+      // Admin / Cloud Function only — no client access.
+      allow read, write: if false;
     }
   }
 }
