@@ -37,8 +37,10 @@ import {
 import type { FieldValue } from "firebase/firestore";
 import {
   queryQuantitySamples,
+  queryCategorySamples,
 } from "@kingstinct/react-native-healthkit";
 import type { QuantitySample } from "@kingstinct/react-native-healthkit";
+import { mapCategorySampleToSleepSample, getSleepNightDate } from "@/lib/services/healthkit/mappers";
 
 import { db, getAuth } from "./firestore";
 import { syncClinicalNotes } from "./clinicalNotesSync";
@@ -387,6 +389,172 @@ export async function syncAllHealthKit(): Promise<SyncAllResult> {
   return { ok: allOk, results };
 }
 
+// ── Sleep sync ────────────────────────────────────────────────────────────────
+
+const SLEEP_ANALYSIS_IDENTIFIER = "HKCategoryTypeIdentifierSleepAnalysis" as const;
+const SLEEP_SYNC_KEY = "sleepAnalysis";
+
+/** Shape written to Firestore for each sleep sample. */
+interface FirestoreSleepSampleData {
+  stage: string;
+  stageValue: number;
+  nightDate: string;
+  startDate: Timestamp;
+  endDate: Timestamp;
+  durationMinutes: number;
+  sourceName?: string;
+  deviceName?: string;
+  createdAt: FieldValue;
+  updatedAt: FieldValue;
+}
+
+/** Result returned by syncSleep(). */
+export interface SyncSleepResult {
+  ok: boolean;
+  written: number;
+  error?: string;
+}
+
+/**
+ * Builds a stable Firestore doc ID for a sleep category sample.
+ * Prefers the HK UUID, falls back to SHA-1 of key fields.
+ */
+async function buildSleepSampleId(sample: {
+  uuid?: string;
+  startDate: Date | string;
+  endDate: Date | string;
+  value: number;
+  sourceRevision?: { source?: { name?: string } };
+}): Promise<string> {
+  if (sample.uuid) return sample.uuid;
+
+  const toDate = (d: unknown): Date =>
+    d instanceof Date ? d : new Date(String(d));
+
+  const sourceName = sample.sourceRevision?.source?.name ?? "";
+  const input = [
+    SLEEP_SYNC_KEY,
+    toDate(sample.startDate).toISOString(),
+    toDate(sample.endDate).toISOString(),
+    String(sample.value),
+    sourceName,
+  ].join("|");
+
+  return Crypto.digestStringAsync(
+    Crypto.CryptoDigestAlgorithm.SHA1,
+    input,
+    { encoding: Crypto.CryptoEncoding.HEX },
+  );
+}
+
+/**
+ * Syncs sleep analysis samples from HealthKit to Firestore.
+ *
+ * Firestore path: users/{uid}/healthkit/sleepAnalysis/samples/{sampleId}
+ * Sync state:     users/{uid}/healthkitSync/sleepAnalysis
+ *
+ * Each sample doc stores the stage, night date, duration, and timestamps.
+ * Re-syncing the same sample is idempotent (stable doc ID from HK UUID).
+ */
+export async function syncSleep(
+  options?: { dryRun?: boolean },
+): Promise<SyncSleepResult> {
+  if (Platform.OS !== "ios") return { ok: true, written: 0 };
+
+  const uid = getAuth().currentUser?.uid;
+  if (!uid) {
+    return { ok: false, written: 0, error: "no-auth: user is not signed in" };
+  }
+
+  try {
+    // 1. Determine incremental window.
+    const lastSync = await getLastSync(uid, SLEEP_SYNC_KEY);
+    const sinceDate =
+      lastSync ??
+      new Date(Date.now() - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60 * 1_000);
+
+    const startDate = new Date(sinceDate.getTime() - OVERLAP_WINDOW_MS);
+    const endDate = new Date();
+
+    // 2. Pull sleep category samples from HealthKit.
+    const rawSamples = await queryCategorySamples(SLEEP_ANALYSIS_IDENTIFIER as any, {
+      limit: 0,
+      filter: { date: { startDate, endDate } },
+    });
+
+    if (!rawSamples || rawSamples.length === 0) {
+      return { ok: true, written: 0 };
+    }
+
+    // 3. Transform each sample.
+    const toDate = (d: unknown): Date =>
+      d instanceof Date ? d : new Date(String(d));
+
+    const entries: { id: string; data: FirestoreSleepSampleData }[] =
+      await Promise.all(
+        rawSamples.map(async (raw) => {
+          const id = await buildSleepSampleId(raw as any);
+          const mapped = mapCategorySampleToSleepSample(raw as any);
+          const nightDate = getSleepNightDate(toDate(raw.startDate));
+
+          const data: FirestoreSleepSampleData = {
+            stage: mapped.stage,
+            stageValue: (raw as any).value,
+            nightDate,
+            startDate: Timestamp.fromDate(toDate(raw.startDate)),
+            endDate: Timestamp.fromDate(toDate(raw.endDate)),
+            durationMinutes: mapped.durationMinutes,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          };
+
+          const sourceName = (raw as any).sourceRevision?.source?.name;
+          if (sourceName) data.sourceName = sourceName;
+          const deviceName = (raw as any).device?.name;
+          if (deviceName) data.deviceName = deviceName;
+
+          return { id, data };
+        }),
+      );
+
+    if (!options?.dryRun) {
+      // 4. Write in batches.
+      const basePath = `users/${uid}/healthkit/${SLEEP_SYNC_KEY}/samples`;
+      console.log(`[HealthKit] Writing ${entries.length} sleep samples → ${basePath}/`);
+
+      for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+        const chunk = entries.slice(i, i + BATCH_SIZE);
+        const batch = writeBatch(db);
+        for (const { id, data } of chunk) {
+          batch.set(doc(db, `${basePath}/${id}`), data);
+        }
+        await batch.commit();
+        console.log(`[HealthKit] Sleep batch committed (${chunk.length} docs)`);
+      }
+
+      // 5. Advance sync cursor.
+      const maxEndDate = rawSamples.reduce<Date>((max, s) => {
+        const end = toDate((s as any).endDate);
+        return end > max ? end : max;
+      }, new Date(0));
+
+      await setSyncState(uid, SLEEP_SYNC_KEY, {
+        lastSyncedAt: Timestamp.fromDate(maxEndDate),
+        lastStatus: "ok",
+      });
+    }
+
+    return { ok: true, written: entries.length };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await setSyncState(uid, SLEEP_SYNC_KEY, {
+      lastStatus: "error",
+      lastError: message,
+    }).catch(() => {});
+    return { ok: false, written: 0, error: message };
+  }
+}
+
 // ── bootstrapHealthKitSync ────────────────────────────────────────────────────
 
 /**
@@ -397,9 +565,10 @@ export async function syncAllHealthKit(): Promise<SyncAllResult> {
 export async function bootstrapHealthKitSync(): Promise<void> {
   console.log("[HealthKit] bootstrapHealthKitSync: starting");
   try {
-    // All three pipelines use separate HealthKit APIs — run in parallel.
-    const [hkResult, clinicalResult, fhirResult] = await Promise.all([
+    // All four pipelines use separate HealthKit APIs — run in parallel.
+    const [hkResult, sleepResult, clinicalResult, fhirResult] = await Promise.all([
       syncAllHealthKit(),
+      syncSleep(),
       syncClinicalNotes(),
       syncFhirPrefill(),
     ]);
@@ -408,6 +577,12 @@ export async function bootstrapHealthKitSync(): Promise<void> {
       console.log("[HealthKit] bootstrapHealthKitSync: quantity metrics synced OK", hkResult.results);
     } else {
       console.warn("[HealthKit] bootstrapHealthKitSync: quantity metrics had errors", hkResult.results);
+    }
+
+    if (sleepResult.ok) {
+      console.log(`[HealthKit] bootstrapHealthKitSync: sleep synced OK — written: ${sleepResult.written}`);
+    } else {
+      console.warn("[HealthKit] bootstrapHealthKitSync: sleep sync error:", sleepResult.error);
     }
 
     if (clinicalResult.ok) {

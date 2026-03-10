@@ -54,7 +54,7 @@ export function useHealthSummary(): {
         const todayActivity =
           activityData.find((d) => d.date === today) ??
           (activityData.length > 0 ? activityData[activityData.length - 1] : null);
-        const todaySleep = sleepData.length > 0 ? sleepData[0] : null;
+        const todaySleep = sleepData.length > 0 ? sleepData[sleepData.length - 1] : null;
         const todayVitals =
           vitalsData.find((d) => d.date === today) ??
           (vitalsData.length > 0 ? vitalsData[vitalsData.length - 1] : null);
