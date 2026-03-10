@@ -31,7 +31,10 @@ import { notifyOnboardingComplete } from '@/hooks/use-onboarding-status';
 import { useSurgeryDate } from '@/hooks/use-surgery-date';
 import { useWatchUsage } from '@/hooks/use-watch-usage';
 import { SurgeryCompleteModal } from '@/components/home/SurgeryCompleteModal';
+import { useAuth } from '@/lib/auth/auth-context';
+import { useThroneUserId } from '@/hooks/use-throne-user-id';
 import { useAppTheme } from '@/lib/theme/ThemeContext';
+import { FontSize, FontWeight } from '@/lib/theme/typography';
 import { useHealthSummary } from '@/hooks/use-health-summary';
 import {
   fetchSessions,
@@ -288,7 +291,7 @@ function MiniBarChart({
 const miniChartStyles = StyleSheet.create({
   chartRow: { flexDirection: 'row', alignItems: 'stretch' },
   yAxis: { width: 36, justifyContent: 'space-between', paddingRight: 6, alignItems: 'flex-end' },
-  axisLabel: { fontSize: 9 },
+  axisLabel: { fontSize: FontSize.chartAxis },
   barArea: { flex: 1, position: 'relative' },
   gridLine: {
     position: 'absolute',
@@ -299,9 +302,9 @@ const miniChartStyles = StyleSheet.create({
   barRow: { flex: 1, flexDirection: 'row', alignItems: 'flex-end', gap: 4 },
   barWrapper: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', height: '100%' },
   xRow: { flexDirection: 'row', marginTop: 4 },
-  xLabel: { fontSize: 9 },
+  xLabel: { fontSize: FontSize.chartAxis },
   empty: { justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 13 },
+  emptyText: { fontSize: FontSize.footnote },
 });
 
 // ─── Metric pill row ──────────────────────────────────────────────────────────
@@ -341,7 +344,7 @@ function MetricPills({
 const pillStyles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   pill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  text: { fontSize: 12, fontWeight: '600' },
+  text: { fontSize: FontSize.caption, fontWeight: FontWeight.semibold },
 });
 
 // ─── Vitals row ───────────────────────────────────────────────────────────────
@@ -378,8 +381,8 @@ function VitalRow({
 const vitalStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10 },
   iconBox: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  label: { flex: 1, fontSize: 15 },
-  value: { fontSize: 15, fontWeight: '600' },
+  label: { flex: 1, fontSize: FontSize.subhead },
+  value: { fontSize: FontSize.subhead, fontWeight: FontWeight.semibold },
   divider: { height: StyleSheet.hairlineWidth, marginLeft: 40 },
 });
 
@@ -413,6 +416,9 @@ function daysUntil(dateStr: string): string {
 export default function HomeScreen() {
   const { theme } = useAppTheme();
   const { colors: t } = theme;
+  const { user } = useAuth();
+  const uid = user?.id ?? null;
+  const { throneUserId } = useThroneUserId(uid);
   const surgery = useSurgeryDate();
   const watch = useWatchUsage();
 
@@ -434,8 +440,7 @@ export default function HomeScreen() {
       setThroneLoading(true);
       try {
         const since = new Date(Date.now() - WEEK_MS);
-        // Match voiding.tsx: no userId filter (Firestore userId field may differ from auth uid)
-        const raw: ThroneSession[] = await fetchSessions({ startDate: since });
+        const raw: ThroneSession[] = await fetchSessions({ startDate: since, userId: throneUserId ?? undefined });
         if (cancelled) return;
 
         const ids = raw.map((s) => s.id);
@@ -464,7 +469,7 @@ export default function HomeScreen() {
 
     loadThroneData();
     return () => { cancelled = true; };
-  }, [refreshKey]);
+  }, [refreshKey, throneUserId]);
 
   const weekSessions = useMemo(
     () => filterByRange(sessions, '1w'),
@@ -503,12 +508,12 @@ export default function HomeScreen() {
     ? `${Math.round(vitals.restingHeartRate)} bpm`
     : '—';
 
-  const spo2Label = vitals?.oxygenSaturation
-    ? `${Math.round(vitals.oxygenSaturation * 100)}%`
+  const restingHrLabel = vitals?.restingHeartRate
+    ? `${Math.round(vitals.restingHeartRate)} bpm`
     : '—';
 
-  const respLabel = vitals?.respiratoryRate
-    ? `${Math.round(vitals.respiratoryRate)} brpm`
+  const hrvLabel = vitals?.hrv
+    ? `${Math.round(vitals.hrv)} ms`
     : '—';
 
   // ─── Refresh ───────────────────────────────────────────────────────────────
@@ -586,6 +591,72 @@ export default function HomeScreen() {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* ─── Surgery Date Card ─────────────────────────────────────────── */}
+        <View style={[styles.card, styles.accentBorder, { backgroundColor: t.card, borderLeftColor: t.accent }]}>
+          <View style={styles.cardHeader}>
+            <IconSymbol name="calendar.badge.clock" size={17} color={t.accent} />
+            <Text style={[styles.cardLabel, { color: t.textSecondary }]}>Surgery date</Text>
+            {surgery.isPlaceholder && __DEV__ && (
+              <View style={[styles.placeholderBadge, { backgroundColor: t.secondaryFill }]}>
+                <Text style={[styles.placeholderBadgeText, { color: t.textTertiary }]}>
+                  Placeholder
+                </Text>
+              </View>
+            )}
+          </View>
+          {surgery.isLoading ? (
+            <Text style={[styles.cardValue, { color: t.textPrimary }]}>Loading...</Text>
+          ) : (
+            <>
+              <Text style={[styles.cardValue, { color: t.textPrimary }]}>
+                {surgery.dateLabel}
+              </Text>
+              {surgery.date && !surgery.hasPassed && (
+                <Text style={[styles.cardSubtext, { color: t.textTertiary }]}>
+                  {daysUntil(surgery.date)}
+                </Text>
+              )}
+              {surgery.hasPassed && (
+                <Text style={[styles.cardSubtext, { color: t.textTertiary }]}>
+                  Surgery completed — tracking recovery
+                </Text>
+              )}
+            </>
+          )}
+        </View>
+
+        {/* Study Timeline */}
+        {!surgery.isLoading && (
+          <View style={[styles.card, styles.accentBorder, { backgroundColor: t.card, borderLeftColor: t.semanticSuccess }]}>
+            <View style={styles.cardHeader}>
+              <IconSymbol name="calendar" size={17} color={t.semanticSuccess} />
+              <Text style={[styles.cardLabel, { color: t.textSecondary }]}>Study timeline</Text>
+              {surgery.isPlaceholder && __DEV__ && (
+                <View style={[styles.placeholderBadge, { backgroundColor: t.secondaryFill }]}>
+                  <Text style={[styles.placeholderBadgeText, { color: t.textTertiary }]}>
+                    Placeholder
+                  </Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.timelineRow}>
+              <View style={styles.timelineItem}>
+                <Text style={[styles.timelineLabel, { color: t.textTertiary }]}>Start</Text>
+                <Text style={[styles.timelineValue, { color: t.textPrimary }]}>
+                  {surgery.studyStartLabel}
+                </Text>
+              </View>
+              <View style={[styles.timelineDivider, { backgroundColor: t.separator }]} />
+              <View style={styles.timelineItem}>
+                <Text style={[styles.timelineLabel, { color: t.textTertiary }]}>End</Text>
+                <Text style={[styles.timelineValue, { color: t.textPrimary }]}>
+                  {surgery.studyEndLabel}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* ─── Throne Science Module ─────────────────────────────────────── */}
         <View style={[styles.moduleCard, { backgroundColor: t.card }]}>
@@ -701,7 +772,7 @@ export default function HomeScreen() {
 
               <View style={[styles.sectionDivider, { backgroundColor: t.separator }]} />
 
-              {/* Sleep, Heart Rate, SpO2, Respiratory */}
+              {/* Sleep, Heart Rate, Resting Heart Rate, HRV */}
               <VitalRow
                 icon="moon.fill"
                 label="Sleep"
@@ -717,16 +788,16 @@ export default function HomeScreen() {
                 c={t}
               />
               <VitalRow
-                icon="drop.fill"
-                label="Blood Oxygen"
-                value={spo2Label}
-                color="#32ADE6"
+                icon="heart.fill"
+                label="Resting Heart Rate"
+                value={restingHrLabel}
+                color="#FF6B35"
                 c={t}
               />
               <VitalRow
-                icon="lungs.fill"
-                label="Respiratory Rate"
-                value={respLabel}
+                icon="waveform.path.ecg"
+                label="Heart Rate Variability"
+                value={hrvLabel}
                 color="#30D158"
                 c={t}
                 isLast
@@ -734,72 +805,6 @@ export default function HomeScreen() {
             </>
           )}
         </View>
-
-        {/* ─── Surgery Date Card ─────────────────────────────────────────── */}
-        <View style={[styles.card, styles.accentBorder, { backgroundColor: t.card, borderLeftColor: t.accent }]}>
-          <View style={styles.cardHeader}>
-            <IconSymbol name="calendar.badge.clock" size={17} color={t.accent} />
-            <Text style={[styles.cardLabel, { color: t.textSecondary }]}>Surgery date</Text>
-            {surgery.isPlaceholder && __DEV__ && (
-              <View style={[styles.placeholderBadge, { backgroundColor: t.secondaryFill }]}>
-                <Text style={[styles.placeholderBadgeText, { color: t.textTertiary }]}>
-                  Placeholder
-                </Text>
-              </View>
-            )}
-          </View>
-          {surgery.isLoading ? (
-            <Text style={[styles.cardValue, { color: t.textPrimary }]}>Loading...</Text>
-          ) : (
-            <>
-              <Text style={[styles.cardValue, { color: t.textPrimary }]}>
-                {surgery.dateLabel}
-              </Text>
-              {surgery.date && !surgery.hasPassed && (
-                <Text style={[styles.cardSubtext, { color: t.textTertiary }]}>
-                  {daysUntil(surgery.date)}
-                </Text>
-              )}
-              {surgery.hasPassed && (
-                <Text style={[styles.cardSubtext, { color: t.textTertiary }]}>
-                  Surgery completed — tracking recovery
-                </Text>
-              )}
-            </>
-          )}
-        </View>
-
-        {/* Study Timeline */}
-        {!surgery.isLoading && (
-          <View style={[styles.card, styles.accentBorder, { backgroundColor: t.card, borderLeftColor: t.semanticSuccess }]}>
-            <View style={styles.cardHeader}>
-              <IconSymbol name="calendar" size={17} color={t.semanticSuccess} />
-              <Text style={[styles.cardLabel, { color: t.textSecondary }]}>Study timeline</Text>
-              {surgery.isPlaceholder && __DEV__ && (
-                <View style={[styles.placeholderBadge, { backgroundColor: t.secondaryFill }]}>
-                  <Text style={[styles.placeholderBadgeText, { color: t.textTertiary }]}>
-                    Placeholder
-                  </Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.timelineRow}>
-              <View style={styles.timelineItem}>
-                <Text style={[styles.timelineLabel, { color: t.textTertiary }]}>Start</Text>
-                <Text style={[styles.timelineValue, { color: t.textPrimary }]}>
-                  {surgery.studyStartLabel}
-                </Text>
-              </View>
-              <View style={[styles.timelineDivider, { backgroundColor: t.separator }]} />
-              <View style={styles.timelineItem}>
-                <Text style={[styles.timelineLabel, { color: t.textTertiary }]}>End</Text>
-                <Text style={[styles.timelineValue, { color: t.textPrimary }]}>
-                  {surgery.studyEndLabel}
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
 
         {/* Watch reminder */}
         {showWatchReminder && (
@@ -941,9 +946,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   headerText: { flex: 1 },
-  dateLabel: { fontSize: 13, fontWeight: '400', marginBottom: 2 },
-  greetingNormal: { fontSize: 34, fontWeight: '700', letterSpacing: 0.37 },
-  greeting: { fontSize: 34, fontWeight: '700', letterSpacing: 0.37, fontStyle: 'italic' },
+  dateLabel: { fontSize: FontSize.footnote, fontWeight: FontWeight.regular, marginBottom: 2 },
+  greetingNormal: { fontSize: FontSize.display, fontWeight: FontWeight.bold, letterSpacing: 0.37 },
+  greeting: { fontSize: FontSize.display, fontWeight: FontWeight.bold, letterSpacing: 0.37, fontStyle: 'italic' },
   devPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -953,7 +958,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginTop: 20,
   },
-  devPillText: { fontSize: 12, fontWeight: '500' },
+  devPillText: { fontSize: FontSize.caption, fontWeight: FontWeight.medium },
 
   // Module cards (Throne + HealthKit)
   moduleCard: {
@@ -975,51 +980,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  moduleTitle: { fontSize: 17, fontWeight: '700' },
-  moduleSubtitle: { fontSize: 12, marginTop: 1 },
+  moduleTitle: { fontSize: FontSize.headline, fontWeight: FontWeight.bold },
+  moduleSubtitle: { fontSize: FontSize.caption, marginTop: 1 },
 
   // Metric summary
   metricSummaryRow: { flexDirection: 'row', alignItems: 'baseline' },
-  metricSummaryValue: { fontSize: 28, fontWeight: '700' },
-  metricSummaryUnit: { fontSize: 15, fontWeight: '500' },
-  metricSummaryLabel: { fontSize: 13 },
+  metricSummaryValue: { fontSize: FontSize.titleLarge, fontWeight: FontWeight.bold },
+  metricSummaryUnit: { fontSize: FontSize.subhead, fontWeight: FontWeight.medium },
+  metricSummaryLabel: { fontSize: FontSize.footnote },
 
   // Loading
   loadingRow: { height: 80, alignItems: 'center', justifyContent: 'center' },
-  platformNote: { fontSize: 14, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 },
+  platformNote: { fontSize: FontSize.subhead, fontStyle: 'italic', textAlign: 'center', paddingVertical: 12 },
 
   // Activity rings section
   activityRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   activityStats: { flex: 1, gap: 10 },
   activityStatRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ringDot: { width: 8, height: 8, borderRadius: 4 },
-  activityStatLabel: { flex: 1, fontSize: 13 },
-  activityStatValue: { fontSize: 13, fontWeight: '600' },
+  activityStatLabel: { flex: 1, fontSize: FontSize.footnote },
+  activityStatValue: { fontSize: FontSize.footnote, fontWeight: FontWeight.semibold },
   sectionDivider: { height: StyleSheet.hairlineWidth, marginVertical: 4 },
 
   // Legacy cards (surgery, timeline, etc.)
   card: { borderRadius: 12, padding: 16, marginBottom: 12 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  cardLabel: { fontSize: 13, fontWeight: '600', letterSpacing: 0.2 },
+  cardLabel: { fontSize: FontSize.footnote, fontWeight: FontWeight.semibold, letterSpacing: 0.2 },
   accentBorder: {
     borderLeftWidth: 3,
     borderTopLeftRadius: 12,
     borderBottomLeftRadius: 12,
   },
-  cardValue: { fontSize: 22, fontWeight: '700', letterSpacing: 0.35 },
-  cardSubtext: { fontSize: 15, fontWeight: '400', marginTop: 4 },
+  cardValue: { fontSize: FontSize.titleMedium, fontWeight: FontWeight.bold, letterSpacing: 0.35 },
+  cardSubtext: { fontSize: FontSize.subhead, fontWeight: FontWeight.regular, marginTop: 4 },
   placeholderBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, marginLeft: 'auto' },
-  placeholderBadgeText: { fontSize: 11, fontWeight: '500' },
+  placeholderBadgeText: { fontSize: FontSize.micro, fontWeight: FontWeight.medium },
   timelineRow: { flexDirection: 'row', alignItems: 'center' },
   timelineItem: { flex: 1 },
-  timelineLabel: { fontSize: 13, fontWeight: '400', marginBottom: 2 },
-  timelineValue: { fontSize: 17, fontWeight: '600' },
+  timelineLabel: { fontSize: FontSize.footnote, fontWeight: FontWeight.regular, marginBottom: 2 },
+  timelineValue: { fontSize: FontSize.headline, fontWeight: FontWeight.semibold },
   timelineDivider: { width: StyleSheet.hairlineWidth, height: 32, marginHorizontal: 16 },
   reminderCard: { borderRadius: 12, padding: 16, marginBottom: 12 },
   reminderContent: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   reminderTextContainer: { flex: 1 },
-  reminderTitle: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
-  reminderBody: { fontSize: 13, lineHeight: 18 },
+  reminderTitle: { fontSize: FontSize.subhead, fontWeight: FontWeight.semibold, marginBottom: 2 },
+  reminderBody: { fontSize: FontSize.footnote, lineHeight: 18 },
   allSetCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1028,7 +1033,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
-  allSetText: { fontSize: 15, fontWeight: '400' },
+  allSetText: { fontSize: FontSize.subhead, fontWeight: FontWeight.regular },
 
   // Dev sheet
   sheetOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
@@ -1042,8 +1047,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sheetTitle: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: FontSize.footnote,
+    fontWeight: FontWeight.semibold,
     letterSpacing: 0.2,
     marginBottom: 16,
     textAlign: 'center',
@@ -1056,7 +1061,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 8,
   },
-  sheetButtonText: { fontSize: 17, fontWeight: '400' },
+  sheetButtonText: { fontSize: FontSize.headline, fontWeight: FontWeight.regular },
   sheetCancel: { alignItems: 'center', padding: 14, marginTop: 4 },
-  sheetCancelText: { fontSize: 17, fontWeight: '600' },
+  sheetCancelText: { fontSize: FontSize.headline, fontWeight: FontWeight.semibold },
 });

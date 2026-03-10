@@ -144,6 +144,24 @@ export async function fetchSurgeryDate(uid: string): Promise<string | null> {
 }
 
 /**
+ * Read the Throne user ID for a given Firebase UID.
+ * Looks for `throneUserId` field in users/{uid}.
+ * Returns null if the field is not set.
+ */
+export async function fetchThroneUserId(uid: string): Promise<string | null> {
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (snap.exists()) {
+      const val = snap.data()?.throneUserId;
+      if (typeof val === 'string' && val) return val;
+    }
+  } catch {
+    // Document may not exist — return null
+  }
+  return null;
+}
+
+/**
  * Persist surgery date to Firestore at users/{uid}/settings.
  * Uses merge so existing fields are not overwritten.
  */

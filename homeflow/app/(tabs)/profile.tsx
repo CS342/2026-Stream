@@ -21,6 +21,7 @@ import {
   STUDY_COORDINATOR,
 } from '@/lib/consent/consent-document';
 import { useAppTheme, type AppearanceMode } from '@/lib/theme/ThemeContext';
+import { FontSize, FontWeight } from '@/lib/theme/typography';
 
 const APPEARANCE_OPTIONS: { value: AppearanceMode; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -109,7 +110,7 @@ export default function ProfileScreen() {
                     style={[
                       styles.segmentText,
                       { color: c.textSecondary },
-                      isSelected && { color: c.textPrimary, fontWeight: '600' },
+                      isSelected && { color: c.textPrimary, fontWeight: FontWeight.semibold },
                     ]}
                   >
                     {opt.label}
@@ -403,8 +404,8 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   screenTitle: {
-    fontSize: 34,
-    fontWeight: '700',
+    fontSize: FontSize.display,
+    fontWeight: FontWeight.bold,
     letterSpacing: 0.37,
     marginBottom: 20,
   },
@@ -422,22 +423,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   cardLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: FontSize.footnote,
+    fontWeight: FontWeight.semibold,
     letterSpacing: 0.2,
   },
 
   // Account info
   accountName: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: FontSize.headline,
+    fontWeight: FontWeight.semibold,
     color: '#2C3E50',
   },
   accountNameDark: {
     color: '#D4D8E8',
   },
   accountEmail: {
-    fontSize: 14,
+    fontSize: FontSize.footnote,
     color: '#7A7F8E',
     marginTop: 2,
   },
@@ -445,7 +446,7 @@ const styles = StyleSheet.create({
     color: '#6B7394',
   },
   placeholderText: {
-    fontSize: 15,
+    fontSize: FontSize.subhead,
     lineHeight: 22,
     fontStyle: 'italic',
   },
@@ -470,8 +471,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   segmentText: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: FontSize.footnote,
+    fontWeight: FontWeight.medium,
   },
 
   // Dev tools
@@ -484,8 +485,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   devButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: FontSize.footnote,
+    fontWeight: FontWeight.medium,
   },
 
   // Sign out
@@ -499,8 +500,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   signOutText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: FontSize.subhead,
+    fontWeight: FontWeight.semibold,
     color: '#D64545',
   },
 
@@ -517,8 +518,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   rowLabel: {
-    fontSize: 17,
-    fontWeight: '400',
+    fontSize: FontSize.headline,
+    fontWeight: FontWeight.regular,
   },
   rowDivider: {
     height: StyleSheet.hairlineWidth,
@@ -539,17 +540,17 @@ const styles = StyleSheet.create({
   },
   bulletText: {
     flex: 1,
-    fontSize: 15,
+    fontSize: FontSize.subhead,
     lineHeight: 22,
   },
 
   // Contact
   contactName: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: FontSize.headline,
+    fontWeight: FontWeight.semibold,
   },
   contactRole: {
-    fontSize: 13,
+    fontSize: FontSize.footnote,
     marginTop: 2,
     marginBottom: 14,
   },
@@ -565,7 +566,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   contactButtonText: {
-    fontSize: 15,
+    fontSize: FontSize.subhead,
   },
 
   // Modal
@@ -589,20 +590,20 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: FontSize.headline,
+    fontWeight: FontWeight.semibold,
     textAlign: 'center',
     marginBottom: 12,
   },
   modalBody: {
-    fontSize: 15,
+    fontSize: FontSize.subhead,
     lineHeight: 22,
     textAlign: 'center',
     marginBottom: 24,
   },
   modalSubhead: {
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: FontSize.footnote,
+    fontWeight: FontWeight.medium,
     marginBottom: 12,
     textAlign: 'left',
   },
@@ -613,8 +614,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   modalButtonText: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontSize: FontSize.headline,
+    fontWeight: FontWeight.semibold,
     color: '#FFFFFF',
   },
 });
