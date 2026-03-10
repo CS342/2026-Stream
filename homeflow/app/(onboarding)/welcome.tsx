@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, StanfordColors, Spacing } from '@/constants/theme';
 import { STUDY_INFO, OnboardingStep } from '@/lib/constants';
 import { OnboardingService } from '@/lib/services/onboarding-service';
-import { ContinueButton, DevToolBar } from '@/components/onboarding';
+import { ContinueButton } from '@/components/onboarding';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { FontSize, FontWeight } from '@/lib/theme/typography';
 
@@ -136,7 +136,6 @@ export default function WelcomeScreen() {
         <ContinueButton title="Get Started" onPress={handleContinue} />
       </Animated.View>
 
-      <DevToolBar currentStep={OnboardingStep.WELCOME} onContinue={handleContinue} />
     </SafeAreaView>
   );
 }

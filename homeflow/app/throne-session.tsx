@@ -19,6 +19,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useAuth } from '@/lib/auth/auth-context';
+import { DEV_FIREBASE_UID } from '@/lib/constants';
 import { useAppTheme } from '@/lib/theme/ThemeContext';
 import { FontSize, FontWeight } from '@/lib/theme/typography';
 import {
@@ -216,6 +218,8 @@ export default function ThroneSessionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { theme } = useAppTheme();
   const { isDark, colors: c } = theme;
+  const { user } = useAuth();
+  const uid = user?.id ?? (__DEV__ ? DEV_FIREBASE_UID : null);
 
   const [session, setSession] = useState<ThroneSession | undefined>();
   const [sessionMetrics, setSessionMetrics] = useState<ThroneMetric[]>([]);
@@ -225,11 +229,11 @@ export default function ThroneSessionDetailScreen() {
     let cancelled = false;
 
     async function load() {
-      if (!id) return;
+      if (!id || !uid) return;
       try {
         const [allSessions, metrics] = await Promise.all([
-          fetchSessions(),
-          fetchMetricsForSession(id),
+          fetchSessions(uid),
+          fetchMetricsForSession(uid, id),
         ]);
         if (!cancelled) {
           setSession(allSessions.find((s) => s.id === id));
@@ -242,7 +246,7 @@ export default function ThroneSessionDetailScreen() {
 
     load();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, uid]);
 
   // Extract summary stats
   const stats = useMemo(() => {
