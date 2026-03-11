@@ -1573,49 +1573,36 @@ function dbg(msg, isError) {
 }
 
 // ── enrolledUserDocs ──────────────────────────────────────────────────────────
-// Discovers enrolled users from existing Firestore collections — no hardcoded UIDs.
+// Gets Firebase UIDs from the patients registry, then reads users/{uid} for each.
 async function enrolledUserDocs() {
-  // Source 1: patients collection — researcher-managed registry
-  dbg('Trying patients collection…');
+  // Step 1: get Firebase UIDs from patients collection
+  let uids = [];
   try {
     const snap = await db.collection('patients').get();
     dbg(`patients collection: ${snap.size} docs`);
-    const results = snap.docs
-      .map(d => ({ uid: d.data().firebaseUid || d.data().uid || d.data().userId, name: d.data().name || d.data().displayName || null, extra: d.data() }))
-      .filter(r => r.uid);
-    if (results.length > 0) { dbg(`Found ${results.length} users via patients collection`); return results; }
+    uids = snap.docs
+      .map(d => d.data().firebaseUid || d.data().uid || d.data().userId)
+      .filter(Boolean);
+    dbg(`Found ${uids.length} UIDs from patients collection`);
   } catch(e) { dbg(`patients collection error: ${e.message}`, true); }
 
-  // Source 2: throneUserMap — written by Cloud Function per enrolled user
-  dbg('Trying throneUserMap collection…');
-  try {
-    const snap = await db.collection('throneUserMap').get();
-    const results = snap.docs
-      .map(d => ({ uid: d.data().firebaseUid || d.data().uid, name: d.data().name || null, extra: d.data() }))
-      .filter(r => r.uid);
-    if (results.length > 0) { dbg(`Found ${results.length} users via throneUserMap`); return results; }
-  } catch(e) { dbg(`throneUserMap error: ${e.message}`, true); }
+  if (uids.length === 0) { dbg('No UIDs found in patients collection', true); return []; }
 
-  // Source 3: users collection — any user with a linked Throne device
-  dbg('Trying users collection (throneUserId filter)…');
-  try {
-    const snap = await db.collection('users').where('throneUserId', '!=', null).get();
-    const results = snap.docs.map(d => ({ uid: d.id, name: d.data().displayName || d.data().name || null, extra: d.data() }));
-    if (results.length > 0) { dbg(`Found ${results.length} users via users collection`); return results; }
-  } catch(e) { dbg(`users collection error: ${e.message}`, true); }
+  // Step 2: read users/{uid} for each to get actual name and profile
+  const results = await Promise.all(uids.map(async uid => {
+    try {
+      const snap = await db.collection('users').doc(uid).get();
+      const data = snap.exists ? snap.data() : {};
+      const name = data.displayName || data.name || data.email || null;
+      return { uid, name, extra: data };
+    } catch(e) {
+      dbg(`users/${uid.slice(0,8)} read error: ${e.message}`, true);
+      return { uid, name: null, extra: {} };
+    }
+  }));
 
-  // Source 4: collection group on throne_sessions
-  dbg('Trying collectionGroup throne_sessions…');
-  try {
-    const snap = await db.collectionGroup('throne_sessions').limit(200).get();
-    const uidSet = new Set();
-    snap.docs.forEach(d => { const parts = d.ref.path.split('/'); if (parts.length >= 2) uidSet.add(parts[1]); });
-    const results = [...uidSet].map(uid => ({ uid, name: null, extra: {} }));
-    if (results.length > 0) { dbg(`Found ${results.length} users via collectionGroup`); return results; }
-  } catch(e) { dbg(`collectionGroup error: ${e.message}`, true); }
-
-  dbg('No enrolled users found in any collection', true);
-  return [];
+  dbg(`Loaded ${results.length} user doc(s) from users collection`);
+  return results;
 }
 
 async function init() {
