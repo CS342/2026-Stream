@@ -95,6 +95,6 @@ export const STUDY_INFO = {
   institution: 'Stanford University',
   principalInvestigator: 'Ryan Sun, MD',
   irbProtocol: 'IRB# -----',
-  contactEmail: 'homeflow-study@stanford.edu',
+  contactEmail: 'info@streamsyncresearch.com',
   contactPhone: '713-677-1764',
 } as const;
