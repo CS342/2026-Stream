@@ -13,7 +13,15 @@ service cloud.firestore {
     // ── User profiles ─────────────────────────────────────────────────────────
 
     match /users/{uid} {
-      allow read, write: if isOwner(uid);
+      // Owner can read their own profile document.
+      allow read: if isOwner(uid);
+
+      // Only allow writing the Throne device-link fields to the root profile
+      // document. All other app data lives in named subcollections below.
+      // This prevents a client from writing arbitrary fields to the root doc
+      // (e.g. spoofing another participant's throneUserId).
+      allow write: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['throneUserId', 'throneUserIdSetAt']);
 
       // ── Throne data (written by Cloud Function, read by owner) ──────────────
 
