@@ -1573,36 +1573,22 @@ function dbg(msg, isError) {
 }
 
 // ── enrolledUserDocs ──────────────────────────────────────────────────────────
-// Gets Firebase UIDs from the patients registry, then reads users/{uid} for each.
+// Reads all profiles directly from the users collection.
 async function enrolledUserDocs() {
-  // Step 1: get Firebase UIDs from patients collection
-  let uids = [];
   try {
-    const snap = await db.collection('patients').get();
-    dbg(`patients collection: ${snap.size} docs`);
-    uids = snap.docs
-      .map(d => d.data().firebaseUid || d.data().uid || d.data().userId)
-      .filter(Boolean);
-    dbg(`Found ${uids.length} UIDs from patients collection`);
-  } catch(e) { dbg(`patients collection error: ${e.message}`, true); }
-
-  if (uids.length === 0) { dbg('No UIDs found in patients collection', true); return []; }
-
-  // Step 2: read users/{uid} for each to get actual name and profile
-  const results = await Promise.all(uids.map(async uid => {
-    try {
-      const snap = await db.collection('users').doc(uid).get();
-      const data = snap.exists ? snap.data() : {};
-      const name = data.displayName || data.name || data.email || null;
-      return { uid, name, extra: data };
-    } catch(e) {
-      dbg(`users/${uid.slice(0,8)} read error: ${e.message}`, true);
-      return { uid, name: null, extra: {} };
-    }
-  }));
-
-  dbg(`Loaded ${results.length} user doc(s) from users collection`);
-  return results;
+    const snap = await db.collection('users').get();
+    dbg(`users collection: ${snap.size} docs`);
+    const results = snap.docs.map(d => ({
+      uid: d.id,
+      name: d.data().displayName || d.data().name || d.data().email || null,
+      extra: d.data(),
+    }));
+    dbg(`Loaded ${results.length} user(s) from users collection`);
+    return results;
+  } catch(e) {
+    dbg(`users collection error: ${e.message}`, true);
+    return [];
+  }
 }
 
 async function init() {
