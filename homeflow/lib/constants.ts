@@ -25,8 +25,11 @@ export const STORAGE_KEYS = {
   // Eligibility
   ELIGIBILITY_RESPONSES: '@homeflow_eligibility_responses',
 
-  // IPSS baseline
+  // IPSS scores
   IPSS_BASELINE: '@homeflow_ipss_baseline',
+  IPSS_1_MONTH: '@homeflow_ipss_1month',
+  IPSS_2_MONTH: '@homeflow_ipss_2month',
+  IPSS_3_MONTH: '@homeflow_ipss_3month',
 
   // Permissions
   PERMISSIONS_STATUS: '@homeflow_permissions_status',
