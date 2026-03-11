@@ -65,6 +65,19 @@ interface FhirAttachment {
   url?: string;         // present when data is not embedded
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+// Allowlist of content types accepted from FHIR attachment metadata.
+// Any value outside this set is coerced to application/octet-stream.
+const ALLOWED_CONTENT_TYPES = new Set([
+  'application/pdf',
+  'application/xml',
+  'application/xhtml+xml',
+  'text/xml',
+  'text/plain',
+  'text/html',
+]);
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
@@ -143,7 +156,10 @@ export async function syncClinicalNotes(): Promise<SyncClinicalNotesResult> {
 
       // ── Extract attachment ───────────────────────────────────────────────
       const attachment = extractAttachment(note.fhirResource);
-      const contentType = attachment?.contentType ?? 'application/xml';
+      const rawContentType = attachment?.contentType ?? 'application/xml';
+      const contentType = ALLOWED_CONTENT_TYPES.has(rawContentType)
+        ? rawContentType
+        : 'application/octet-stream';
 
       // ── Parse attachment (CDA XML → human-readable sections) ────────────
       // Most HealthKit clinical notes are CDA/HL7 XML, not readable PDFs.
@@ -198,9 +214,11 @@ export async function syncClinicalNotes(): Promise<SyncClinicalNotesResult> {
         );
         uploaded++;
       } else {
-        console.log(
-          `[ClinicalNotes] Note ${note.id} ("${note.displayName}") has no inline data — metadata only`,
-        );
+        if (__DEV__) {
+          console.log(
+            `[ClinicalNotes] Note ${note.id} ("${note.displayName}") has no inline data — metadata only`,
+          );
+        }
       }
 
       // ── Write metadata + parsed text to Firestore ────────────────────────

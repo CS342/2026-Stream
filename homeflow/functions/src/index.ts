@@ -16,6 +16,7 @@ import {setGlobalOptions} from "firebase-functions/v2";
 import {onRequest} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as admin from "firebase-admin";
+import * as crypto from "crypto";
 import * as logger from "firebase-functions/logger";
 import {runThroneIngestion, ThroneConfig} from "./throneIngestion";
 
@@ -78,9 +79,14 @@ export const syncThroneNow = onRequest(async (req, res) => {
     return;
   }
 
-  const expected = process.env.ADMIN_TOKEN;
-  const token = req.headers["x-admin-token"];
-  if (!expected || !token || token !== expected) {
+  const expected = process.env.ADMIN_TOKEN ?? "";
+  const token = typeof req.headers["x-admin-token"] === "string"
+    ? req.headers["x-admin-token"]
+    : "";
+  const validToken = expected.length > 0 &&
+    token.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expected));
+  if (!validToken) {
     res.status(401).send("Unauthorized: invalid or missing x-admin-token");
     return;
   }
