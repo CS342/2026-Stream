@@ -484,30 +484,34 @@ export async function bootstrapHealthKitSync(): Promise<void> {
       syncFhirPrefill(),
     ]);
 
-    if (hkResult.ok) {
-      console.log("[HealthKit] bootstrapHealthKitSync: quantity metrics synced OK", hkResult.results);
-    } else {
-      console.warn("[HealthKit] bootstrapHealthKitSync: quantity metrics had errors", hkResult.results);
-    }
+    if (__DEV__) {
+      // Log detailed sync results only in development — these objects contain
+      // health metric categories and clinical data counts (PHI-adjacent).
+      if (hkResult.ok) {
+        console.log("[HealthKit] bootstrapHealthKitSync: quantity metrics synced OK", hkResult.results);
+      } else {
+        console.warn("[HealthKit] bootstrapHealthKitSync: quantity metrics had errors", hkResult.results);
+      }
 
-    if (sleepResult.ok) {
-      console.log(`[HealthKit] bootstrapHealthKitSync: sleep synced OK — written: ${sleepResult.written}`);
-    } else {
-      console.warn("[HealthKit] bootstrapHealthKitSync: sleep sync error:", sleepResult.error);
-    }
+      if (sleepResult.ok) {
+        console.log(`[HealthKit] bootstrapHealthKitSync: sleep synced OK — written: ${sleepResult.written}`);
+      } else {
+        console.warn("[HealthKit] bootstrapHealthKitSync: sleep sync error:", sleepResult.error);
+      }
 
-    if (clinicalResult.ok) {
-      console.log(
-        `[HealthKit] bootstrapHealthKitSync: clinical notes synced OK — uploaded: ${clinicalResult.uploaded}, skipped: ${clinicalResult.skipped}`,
-      );
-    } else {
-      console.warn("[HealthKit] bootstrapHealthKitSync: clinical notes sync error:", clinicalResult.error);
-    }
+      if (clinicalResult.ok) {
+        console.log(
+          `[HealthKit] bootstrapHealthKitSync: clinical notes synced OK — uploaded: ${clinicalResult.uploaded}, skipped: ${clinicalResult.skipped}`,
+        );
+      } else {
+        console.warn("[HealthKit] bootstrapHealthKitSync: clinical notes sync error:", clinicalResult.error);
+      }
 
-    if (fhirResult.ok) {
-      console.log("[HealthKit] bootstrapHealthKitSync: FHIR prefill synced OK", fhirResult.sourceRecordCounts);
-    } else {
-      console.warn("[HealthKit] bootstrapHealthKitSync: FHIR prefill sync error:", fhirResult.error);
+      if (fhirResult.ok) {
+        console.log("[HealthKit] bootstrapHealthKitSync: FHIR prefill synced OK", fhirResult.sourceRecordCounts);
+      } else {
+        console.warn("[HealthKit] bootstrapHealthKitSync: FHIR prefill sync error:", fhirResult.error);
+      }
     }
   } catch (err) {
     console.error("[HealthKit] bootstrapHealthKitSync: unexpected error:", err);
