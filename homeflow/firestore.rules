@@ -27,6 +27,22 @@ service cloud.firestore {
       allow write: if false; // Admin SDK only — never writable by a client
     }
 
+    // ── Dashboard config (researcher read-only, Admin SDK write) ─────────────
+    // Stores hkTestUid, studyId, researcherProfile — never written by clients.
+
+    match /config/{docId} {
+      allow read:  if isResearcher();
+      allow write: if false; // Admin SDK / Firebase Console only
+    }
+
+    // ── Audit log (researcher write, no client reads) ─────────────────────────
+    // Export events written here; queryable only via Admin SDK or Console.
+
+    match /audit_log/{logId} {
+      allow create: if isResearcher();
+      allow read, update, delete: if false;
+    }
+
     // ── Patient registry (researcher-managed, used by dashboard) ─────────────
     // Researchers read/write this collection to register study participants.
     // Patients have no access to it.

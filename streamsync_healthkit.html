@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-Frame-Options" content="DENY">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="Referrer-Policy" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; img-src 'self' data:;">
 <title>Streamsync — BPH Outcomes Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"
+  integrity="sha512-ZwR1/gSZY3927EH7E5jj8qKAJNY4nFBBrfrWAEP8TNvDlz7Lgh7yK5nFj36SoiSNZBi1YOkQHMYrCRMXovb4=="
+  crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 :root{--bg1:#060D1F;--bg2:#0A1530;--bg3:#0E1C3D;--glass:rgba(255,255,255,0.04);--glass-border:rgba(255,255,255,0.08);--glass-hover:rgba(255,255,255,0.07);--blue-glow:rgba(56,130,255,0.18);--accent:#3882FF;--accent2:#00C8FF;--teal:#00C8A8;--green:#22D977;--amber:#FFB020;--red:#FF4D6D;--purple:#A78BFA;--text1:#E8F0FF;--text2:#7A96C8;--text3:#3D5880;--font:'Inter',sans-serif;--r:14px;--r-sm:10px;}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -258,7 +264,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   </div>
 </aside>
 
-<main class="main">
+<main class="main" id="main-app" style="display:none">
   <div class="topbar">
     <div class="topbar-left">
       <div class="page-title" id="top-title">Clinician Dashboard</div>
@@ -274,8 +280,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </div>
       <div class="icon-btn">🔔<div class="notif-dot"></div></div>
       <div class="doctor-pill">
-        <div class="pill-av">DW</div>
-        <span class="pill-name" id="auth-user-label">Dr. Wong</span>
+        <div class="pill-av" id="auth-user-av">—</div>
+        <span class="pill-name" id="auth-user-label"></span>
         <span style="color:var(--text3);font-size:11px">⌄</span>
       </div>
       <button id="auth-signout-btn" onclick="signOut()" style="display:none;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;background:rgba(255,77,109,0.12);border:1px solid rgba(255,77,109,0.3);color:var(--red);cursor:pointer;font-family:var(--font)">Sign Out</button>
@@ -488,9 +494,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
   <div id="page-settings" class="page">
     <div style="margin-bottom:20px;font-size:16px;font-weight:700;color:var(--text1)">Settings</div>
     <div style="display:flex;flex-direction:column;gap:10px;max-width:560px">
-      <div class="pt-card" style="padding:18px 22px;cursor:default"><div style="font-size:13px;font-weight:700;margin-bottom:2px">Clinician Profile</div><div style="font-size:12px;color:var(--text2);margin-bottom:14px">Dr. Daniel Wong · Urologist · Stanford Medicine</div><button class="compact-btn">Edit Profile</button></div>
+      <div class="pt-card" style="padding:18px 22px;cursor:default"><div style="font-size:13px;font-weight:700;margin-bottom:2px">Clinician Profile</div><div id="settings-profile" style="font-size:12px;color:var(--text2);margin-bottom:14px">Loading…</div><button class="compact-btn">Edit Profile</button></div>
       <div class="pt-card" style="padding:18px 22px;cursor:default"><div style="font-size:13px;font-weight:700;margin-bottom:2px">Alert Thresholds</div><div style="font-size:12px;color:var(--text2);margin-bottom:14px">Sync overdue after <strong style="color:var(--text1)">24 hours</strong> · IPSS flag above <strong style="color:var(--text1)">20</strong></div><button class="compact-btn">Configure</button></div>
-      <div class="pt-card" style="padding:18px 22px;cursor:default"><div style="font-size:13px;font-weight:700;margin-bottom:2px">Firebase Connection</div><div style="font-size:12px;color:var(--text2);margin-bottom:14px">Study: <strong style="color:var(--text1)">dr-wong-biodesign-urinary-flow-rate-1</strong><br><span id="settings-fb-status">Checking…</span></div><button class="compact-btn" onclick="location.reload()">Reconnect</button></div>
+      <div class="pt-card" style="padding:18px 22px;cursor:default"><div style="font-size:13px;font-weight:700;margin-bottom:2px">Firebase Connection</div><div style="font-size:12px;color:var(--text2);margin-bottom:14px">Study: <strong style="color:var(--text1)" id="settings-study-id">Loading…</strong><br><span id="settings-fb-status">Checking…</span></div><button class="compact-btn" onclick="location.reload()">Reconnect</button></div>
       <div class="pt-card" style="padding:18px 22px;cursor:default"><div style="font-size:13px;font-weight:700;margin-bottom:2px">Connected Devices</div><div style="font-size:12px;color:var(--text2);margin-bottom:14px"><span style="color:var(--green)">●</span> Throne Smart Toilet API &nbsp;·&nbsp; <span style="color:var(--green)">●</span> Apple HealthKit</div><button class="compact-btn">Manage Integrations</button></div>
     </div>
   </div>
@@ -543,6 +549,14 @@ let trendChart, uroflowChart, sleepChartObj, hrChartObj, stepsChartObj;
 let isCompact = false;
 let currentPatientKey = null;
 
+// Escape HTML special chars before inserting user-controlled strings into innerHTML
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// Debug panel is localhost-only — never exposes collection paths in production
+const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+
 // ── Avatar gradient pool ──────────────────────────────────────────────────────
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg,#1A6FDB,#0D9488)',
@@ -578,9 +592,9 @@ function renderPatientCards(patientList) {
     card.innerHTML = `
       <div class="pt-row">
         <div class="pt-info">
-          <div class="pt-avatar" style="background:${gradient}">${initials}</div>
+          <div class="pt-avatar" style="background:${gradient}">${escHtml(initials)}</div>
           <div>
-            <div class="pt-name">${name}</div>
+            <div class="pt-name">${escHtml(name)}</div>
             <div class="pt-meta" id="ptmeta-${suffix}">Enrolled</div>
             <div class="pt-surg"><span class="badge badge-blue" id="ptsurg-${suffix}">BPH Study</span></div>
           </div>
@@ -1101,6 +1115,15 @@ function showToast(msg,icon='✅',duration=2600) {
   setTimeout(()=>t.classList.remove('show'),duration);
 }
 
+function logExport(type, detail) {
+  const user = auth.currentUser;
+  if (!user) return;
+  db.collection('audit_log').add({
+    event: 'export', type, detail,
+    exportedBy: user.uid, exportedByEmail: user.email,
+    exportedAt: new Date().toISOString(),
+  }).catch(e => console.warn('Audit log write failed:', e.message));
+}
 function exportCSV() {
   const headers=['Name','Age','MRN','Procedure','Op Date','Days Post-Op','IPSS Pre','IPSS Post','Qmax Pre','Qmax Post'];
   const rows=Object.values(patients).map(p=>[p.name,p.age,p.mrn,p.surg,p.opdate,p.post,p.ipss.pre,p.ipss.post,p.qmax.pre,p.qmax.post]);
@@ -1108,6 +1131,7 @@ function exportCSV() {
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download='bph_cohort_data.csv'; a.click();
+  logExport('cohort_csv', 'bph_cohort_data.csv');
   showToast('CSV downloaded','📊');
 }
 function exportPatientCSV() {
@@ -1119,6 +1143,7 @@ function exportPatientCSV() {
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
   a.download=`${p.name.replace(/\s/g,'_')}_outcomes.csv`; a.click();
+  logExport('patient_csv', currentPatientKey);
   showToast(`${p.name} data exported`,'📊');
 }
 function exportPDF() { showToast('Generating PDF…','📄',3000); setTimeout(()=>showToast('Use Ctrl+P to save as PDF','🖨️',4000),1500); }
@@ -1171,7 +1196,7 @@ function updateSyncCell(suffix,label,color,icon) {
   const cell=document.getElementById(`throne-sync-${suffix}`); if(!cell) return;
   const iconEl=cell.querySelector('.sync-icon'), timeEl=cell.querySelector('.sync-time');
   if(iconEl) iconEl.textContent=icon;
-  if(timeEl){timeEl.innerHTML=label;timeEl.className='sync-time';if(color==='red')timeEl.classList.add('sync-late');if(color==='amber')timeEl.classList.add('sync-warn');if(color==='green')timeEl.style.color='var(--accent)';}
+  if(timeEl){timeEl.textContent=label;timeEl.className='sync-time';if(color==='red')timeEl.classList.add('sync-late');if(color==='amber')timeEl.classList.add('sync-warn');if(color==='green')timeEl.style.color='var(--accent)';}
 }
 async function fetchFlowValues(uid, sessionId) {
   try {
@@ -1246,9 +1271,8 @@ async function buildDetailChartsFromFirebase(shortKey) {
   } catch(err){buildDetailCharts(shortKey);}
 }
 // ── Apple HealthKit Integration ────────────────────────────────────────────
-// TODO: remove HK_TEST_UID and restore dynamic per-patient lookup once firebaseUids are in Firestore
-const HK_TEST_UID = 'REDACTED_UID';
-// PATIENT_USER_IDS is built dynamically from Firestore in init()
+// hkTestUid is loaded from Firestore /config/dashboard after auth — never hardcoded here.
+// TODO: replace window._hkTestUid with dynamic per-patient firebaseUid lookup once UIDs are in Firestore
 const PATIENT_USER_IDS = {};
 
 // Fetch the most recent N samples from a HealthKit subcollection
@@ -1374,7 +1398,7 @@ async function loadHealthKitForCard(shortKey, userId) {
 
     // Update small inline text inside apple-cell
     if (syncEl) {
-      syncEl.innerHTML = syncLabel.replace('<br>', ' ');
+      syncEl.textContent = syncLabel.replace('<br>', ' ');
       syncEl.style.color = syncColor === 'green' ? 'var(--accent)' : syncColor === 'amber' ? 'var(--amber)' : syncColor === 'red' ? 'var(--red)' : 'var(--text3)';
     }
 
@@ -1385,7 +1409,7 @@ async function loadHealthKitForCard(shortKey, userId) {
       const timeEl = watchCell.querySelector('.sync-time');
       if (iconEl) iconEl.textContent = syncIcon;
       if (timeEl) {
-        timeEl.innerHTML = syncLabel;
+        timeEl.textContent = syncLabel.replace('<br>', ' ');
         timeEl.className = 'sync-time';
         if (syncColor === 'red')   timeEl.classList.add('sync-late');
         if (syncColor === 'amber') timeEl.classList.add('sync-warn');
@@ -1460,7 +1484,7 @@ async function loadHealthKitForCard(shortKey, userId) {
 // Load all patients' HealthKit data (called after main init)
 async function loadAllHealthKit() {
   const promises = Object.keys(PATIENT_USER_IDS).map(shortKey => {
-    const userId = HK_TEST_UID || PATIENT_USER_IDS[shortKey];
+    const userId = window._hkTestUid || PATIENT_USER_IDS[shortKey];
     return loadHealthKitForCard(shortKey, userId);
   });
   await Promise.allSettled(promises);
@@ -1490,10 +1514,12 @@ function buildAlerts() {
       div.innerHTML = `<div style="padding:16px 20px;display:flex;align-items:flex-start;gap:14px">
         <div style="width:40px;height:40px;border-radius:50%;background:rgba(122,150,200,0.12);border:1px solid var(--glass-border);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📡</div>
         <div style="flex:1">
-          <div style="font-size:13.5px;font-weight:700;color:var(--text1);margin-bottom:3px">No Sessions — ${p.name}</div>
+          <div style="font-size:13.5px;font-weight:700;color:var(--text1);margin-bottom:3px">No Sessions — <span class="alert-name"></span></div>
           <div style="font-size:12px;color:var(--text2)">No completed Throne sessions recorded yet.</div>
-          <div style="margin-top:10px"><button class="compact-btn" onclick="openPatient('${shortKey}')">View Patient</button></div>
+          <div style="margin-top:10px"><button class="compact-btn alert-open-btn">View Patient</button></div>
         </div></div>`;
+      div.querySelector('.alert-name').textContent = p.name;
+      div.querySelector('.alert-open-btn').addEventListener('click', () => openPatient(shortKey));
       list.appendChild(div);
     } else {
       const last = sessions[sessions.length - 1];
@@ -1509,12 +1535,15 @@ function buildAlerts() {
         div.innerHTML = `<div style="padding:16px 20px;display:flex;align-items:flex-start;gap:14px">
           <div style="width:40px;height:40px;border-radius:50%;background:rgba(${isOverdue?'255,77,109':'255,176,32'},0.15);border:1px solid rgba(${isOverdue?'255,77,109':'255,176,32'},0.3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${isOverdue?'⚠️':'📡'}</div>
           <div style="flex:1">
-            <div style="font-size:13.5px;font-weight:700;color:var(--text1);margin-bottom:3px">${isOverdue?'Overdue':'Delayed'} Sync — ${p.name}</div>
-            <div style="font-size:12px;color:var(--text2)">Last Throne session <span style="color:${isOverdue?'var(--red)':'var(--amber)'};font-weight:700">${label}</span>. ${isOverdue?'Immediate follow-up recommended.':'Consider checking in.'}</div>
-            <div style="margin-top:10px"><button class="compact-btn" onclick="openPatient('${shortKey}')">View Patient</button></div>
+            <div style="font-size:13.5px;font-weight:700;color:var(--text1);margin-bottom:3px">${isOverdue?'Overdue':'Delayed'} Sync — <span class="alert-name"></span></div>
+            <div style="font-size:12px;color:var(--text2)">Last Throne session <span style="color:${isOverdue?'var(--red)':'var(--amber)'};font-weight:700" class="alert-label"></span>. ${isOverdue?'Immediate follow-up recommended.':'Consider checking in.'}</div>
+            <div style="margin-top:10px"><button class="compact-btn alert-open-btn">View Patient</button></div>
           </div>
-          <div style="font-size:11px;color:var(--text3);white-space:nowrap">${label}</div>
+          <div style="font-size:11px;color:var(--text3);white-space:nowrap" class="alert-label"></div>
         </div>`;
+        div.querySelectorAll('.alert-name').forEach(el => { el.textContent = p.name; });
+        div.querySelectorAll('.alert-label').forEach(el => { el.textContent = label; });
+        div.querySelector('.alert-open-btn').addEventListener('click', () => openPatient(shortKey));
         list.appendChild(div);
       }
     }
@@ -1533,6 +1562,7 @@ function buildAlerts() {
 // ── debug panel ───────────────────────────────────────────────────────────────
 function dbg(msg, isError) {
   console[isError ? 'error' : 'log']('[StreamSync]', msg);
+  if (!IS_LOCAL) return; // debug panel disabled in production
   const panel = document.getElementById('debug-panel');
   const log   = document.getElementById('debug-log');
   if (!panel || !log) return;
@@ -1544,18 +1574,20 @@ function dbg(msg, isError) {
 }
 
 // ── enrolledUserDocs ──────────────────────────────────────────────────────────
-// TODO: replace HK_TEST_UID with dynamic lookup once per-patient firebaseUids are in Firestore
+// TODO: replace with multi-source dynamic lookup once per-patient firebaseUids are in Firestore
 async function enrolledUserDocs() {
-  dbg(`Loading user doc for test UID ${HK_TEST_UID.slice(0, 8)}…`);
+  const hkUid = window._hkTestUid;
+  if (!hkUid) { dbg('No hkTestUid in /config/dashboard — no patients to load', true); return []; }
+  dbg(`Loading user doc for configured UID…`);
   try {
-    const snap = await db.collection('users').doc(HK_TEST_UID).get();
+    const snap = await db.collection('users').doc(hkUid).get();
     const data = snap.exists ? snap.data() : {};
-    const name = data.displayName || data.name || data.email || HK_TEST_UID;
+    const name = data.displayName || data.name || data.email || '(unknown)';
     dbg(`Found user: ${name}`);
-    return [{ uid: HK_TEST_UID, name, extra: data }];
+    return [{ uid: hkUid, name, extra: data }];
   } catch(e) {
     dbg(`users doc error: ${e.message}`, true);
-    return [{ uid: HK_TEST_UID, name: HK_TEST_UID, extra: {} }];
+    return [{ uid: hkUid, name: '(unknown)', extra: {} }];
   }
 }
 
@@ -1723,14 +1755,31 @@ async function init() {
   }
 }
 // ── Auth gate — init() only runs when a researcher is signed in ──────────────
-auth.onAuthStateChanged(user => {
+auth.onAuthStateChanged(async user => {
   if (user) {
     document.getElementById('login-overlay').style.display = 'none';
-    document.getElementById('auth-user-label').textContent = user.email || 'Signed in';
+    document.getElementById('main-app').style.display = 'block';
     document.getElementById('auth-signout-btn').style.display = 'inline-flex';
+    const initials = (user.email || '?').slice(0, 2).toUpperCase();
+    document.getElementById('auth-user-av').textContent = initials;
+    document.getElementById('auth-user-label').textContent = user.displayName || user.email || 'Signed in';
+    // Load study config (hkTestUid, studyId, researcherProfile) from Firestore — never hardcoded
+    try {
+      const cfgSnap = await db.collection('config').doc('dashboard').get();
+      const cfg = cfgSnap.exists ? cfgSnap.data() : {};
+      const profileEl = document.getElementById('settings-profile');
+      const studyEl   = document.getElementById('settings-study-id');
+      if (profileEl) profileEl.textContent = cfg.researcherProfile || user.email || '—';
+      if (studyEl)   studyEl.textContent   = cfg.studyId || '—';
+      window._hkTestUid = cfg.hkTestUid || null;
+    } catch(e) {
+      console.warn('Config load failed:', e.message);
+      window._hkTestUid = null;
+    }
     init();
   } else {
     document.getElementById('login-overlay').style.display = 'flex';
+    document.getElementById('main-app').style.display = 'none';
     document.getElementById('auth-signout-btn').style.display = 'none';
   }
 });
@@ -1740,8 +1789,8 @@ function signIn() {
   const pass  = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
   errEl.textContent = '';
-  auth.signInWithEmailAndPassword(email, pass).catch(e => {
-    errEl.textContent = e.message;
+  auth.signInWithEmailAndPassword(email, pass).catch(() => {
+    errEl.textContent = 'Invalid email or password. Please try again.';
   });
 }
 
